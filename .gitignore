@@ -1,0 +1,25 @@
+# Azure Functions
+bin/
+obj/
+local.settings.json
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+*.nupkg
+project.lock.json
+
+# Secrets
+appsettings.Development.json
+
+# Logs and cache
+logs/
+cache/

@@ -1,0 +1,520 @@
+{
+  "name": "Daily Car Facts to WordPress (SEO/GEO - Single Call)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "8480b7f3-7f4f-4ecb-8b9b-13c231a0f059",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        2576,
+        -416
+      ],
+      "notes": "Runs daily at 6:00 AM. Change the cron expression to adjust timing."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "date-today",
+              "name": "today_date",
+              "value": "={{ $now.format('MMMM d') }}",
+              "type": "string"
+            },
+            {
+              "id": "month",
+              "name": "today_month",
+              "value": "={{ $now.format('MMMM') }}",
+              "type": "string"
+            },
+            {
+              "id": "day",
+              "name": "today_day",
+              "value": "={{ $now.format('d') }}",
+              "type": "string"
+            },
+            {
+              "id": "year-current",
+              "name": "current_year",
+              "value": "={{ $now.format('yyyy') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "74dab8c2-45de-4710-9aaa-f410500806e6",
+      "name": "Get Current Date",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2800,
+        -416
+      ],
+      "notes": "Gets today's date for generating historically accurate facts"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prompt",
+              "name": "content_prompt",
+              "value": "=Generate exactly 5 unique and fascinating automotive facts that happened on {{ $('Get Current Date').item.json.today_date }} throughout history, PLUS create SEO-optimized titles and metadata.\n\n📋 CONTENT REQUIREMENTS:\n- Each fact must be from a DIFFERENT year and DIFFERENT decade\n- Include facts from various eras (1920s through 2020s)\n- Make facts engaging, detailed, and historically accurate\n- Each fact should be 4-6 sentences long with rich context\n- Focus on significant events: car launches, racing victories, industry milestones, innovations\n- Explain WHY this fact mattered and its impact on the automotive industry\n- Include specific details: locations, people involved, technical specifications when relevant\n\n🎯 SEO & TITLE REQUIREMENTS:\n- Create a CATCHY, CLICKBAIT main page title (60-70 characters)\n- Create individual CATCHY titles for each fact (40-60 characters each)\n- Use power words: \"Shocking\", \"Incredible\", \"Revolutionary\", \"Secret\", \"Never Knew\", \"Untold\"\n- Create curiosity gaps: \"You Won't Believe...\", \"The Hidden Truth...\", \"What Happened When...\"\n- Include numbers and dates for credibility\n- Make titles emotional and engaging\n- Generate SEO meta description (150-160 characters)\n- Generate 5-7 relevant SEO keywords\n- Generate a GEO summary (2-3 sentences optimized for AI search engines like ChatGPT, Perplexity, Claude)\n\nReturn ONLY valid JSON with this exact structure (no markdown, no code blocks, just pure JSON):\n{\n  \"main_title\": \"Catchy clickbait main page title that makes people want to click\",\n  \"meta_description\": \"SEO-optimized meta description 150-160 characters\",\n  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\", \"keyword4\", \"keyword5\"],\n  \"geo_summary\": \"2-3 sentence summary optimized for AI search engines, focusing on key facts and historical significance\",\n  \"facts\": [\n    {\n      \"year\": 1955,\n      \"catchy_title\": \"Catchy engaging title for this specific fact\",\n      \"fact\": \"On this day in 1955, detailed fascinating fact with rich context and impact analysis\",\n      \"car_model\": \"Specific car name or brand involved\",\n      \"image_prompt\": \"Detailed visual description: a photorealistic image of [specific car model], [key visual details like color, angle, setting], [historical context], professional automotive photography style, high quality, detailed, 8k\"\n    }\n  ]\n}\n\nMake sure the image_prompt is detailed and specific enough for accurate image generation. Include visual details like era-appropriate styling, colors, settings, and atmosphere.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4a3aa6aa-776f-42f0-bbc8-c5a8618d34d6",
+      "name": "Build Content Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3024,
+        -416
+      ],
+      "notes": "Constructs comprehensive prompt for generating facts, titles, SEO, and GEO data in ONE call"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Build Content Prompt').item.json.content_prompt }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a dual-expert AI combining automotive history knowledge with SEO/copywriting expertise. You create accurate, detailed automotive facts while simultaneously crafting catchy, clickbait titles and SEO-optimized metadata. You understand both traditional search engines (Google) and AI search engines (ChatGPT, Perplexity, Claude). You ALWAYS return valid JSON only with no additional text, markdown formatting, or code blocks."
+        }
+      },
+      "id": "f8bd7918-e69a-4062-a409-0e1dae94520a",
+      "name": "AI Agent - Generate Everything",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        3248,
+        -416
+      ],
+      "notes": "Single AI call generates facts + titles + SEO + GEO data together!"
+    },
+    {
+      "parameters": {},
+      "id": "e4a08be8-1487-4142-a6c6-c6c560f9a728",
+      "name": "JSON Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        3648,
+        -144
+      ],
+      "notes": "Ensures the AI output is valid JSON in the expected structure"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate the AI agent response containing facts + SEO data\nconst response = items[0].json.output;\n\nlet data;\nif (typeof response === 'string') {\n  // Clean any markdown code blocks\n  let cleaned = response.trim();\n  if (cleaned.startsWith('```json') || cleaned.startsWith('```')) {\n    cleaned = cleaned.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  }\n  data = JSON.parse(cleaned);\n} else if (typeof response === 'object') {\n  data = response;\n} else {\n  throw new Error('Unexpected response format from AI agent');\n}\n\n// Validate structure\nif (!data.main_title || !data.facts || !Array.isArray(data.facts)) {\n  throw new Error('Missing required fields in AI response');\n}\n\n// Validate we have exactly 5 facts\nif (data.facts.length !== 5) {\n  throw new Error(`Expected 5 facts, got ${data.facts.length}`);\n}\n\n// Validate each fact has required fields\ndata.facts.forEach((fact, idx) => {\n  if (!fact.year || !fact.fact || !fact.car_model || !fact.image_prompt || !fact.catchy_title) {\n    throw new Error(`Fact ${idx + 1} is missing required fields`);\n  }\n});\n\n// Store SEO data for later use\nconst seoData = {\n  main_title: data.main_title,\n  meta_description: data.meta_description,\n  keywords: data.keywords,\n  geo_summary: data.geo_summary\n};\n\n// Return each fact as a separate item for image processing\nreturn data.facts.map((fact, index) => ({\n  json: {\n    fact_number: index + 1,\n    year: fact.year,\n    catchy_title: fact.catchy_title,\n    fact: fact.fact,\n    car_model: fact.car_model,\n    image_prompt: fact.image_prompt,\n    // Include SEO data in each item so it's available later\n    seo_data: seoData\n  }\n}));"
+      },
+      "id": "a9e7ad6f-0f40-4923-93d3-69224383c0ff",
+      "name": "Parse & Validate Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        -416
+      ],
+      "notes": "Extracts and validates facts + SEO data from single AI response"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text_prompts\": [\n    {\n      \"text\": \"{{ $json.image_prompt }}, professional automotive photography, high quality, detailed, photorealistic, 8k resolution\",\n      \"weight\": 1\n    },\n    {\n      \"text\": \"blurry, low quality, distorted, text, watermark, logo, signature, ugly, artifacts, cartoon, painting\",\n      \"weight\": -1\n    }\n  ],\n  \"cfg_scale\": 7,\n  \"height\": 1024,\n  \"width\": 1024,\n  \"samples\": 1,\n  \"steps\": 30,\n  \"style_preset\": \"photographic\"\n}",
+        "options": {}
+      },
+      "id": "e2a5bd1c-dc95-464f-9ae7-3509ba104a22",
+      "name": "Stability AI - Generate Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3824,
+        -416
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "I3n5i4IKXaA4Pqd9",
+          "name": "Header Auth account"
+        },
+        "httpBearerAuth": {
+          "id": "SP720ogVA4AlksbD",
+          "name": "Bearer Auth account"
+        }
+      },
+      "notes": "Generates image for each fact using Stability AI SDXL. Replace YOUR_STABILITY_AI_API_KEY."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the base64 image from Stability AI response and prepare for WordPress\nconst base64Image = items[0].json.artifacts[0].base64;\nconst factData = items[0].json;\n\n// Convert base64 to binary data\nconst binaryData = Buffer.from(base64Image, 'base64');\nconst filename = `car-fact-${factData.year}-${factData.fact_number}.png`;\n\nreturn [\n  {\n    json: {\n      fact_number: factData.fact_number,\n      year: factData.year,\n      catchy_title: factData.catchy_title,\n      fact: factData.fact,\n      car_model: factData.car_model,\n      image_filename: filename,\n      seo_data: factData.seo_data  // Pass SEO data through\n    },\n    binary: {\n      image: {\n        data: base64Image,\n        mimeType: 'image/png',\n        fileName: filename\n      }\n    }\n  }\n];"
+      },
+      "id": "1902f17a-ca0a-4e66-905b-3d697d238c42",
+      "name": "Process Image Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4048,
+        -416
+      ],
+      "notes": "Converts base64 image to binary format for WordPress upload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_WORDPRESS_SITE.com/wp-json/wp/v2/media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "image"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.car_model }} ({{ $json.year }})"
+            },
+            {
+              "name": "alt_text",
+              "value": "={{ $json.car_model }} from {{ $json.year }} - historic automotive moment"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.catchy_title }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "36d179fa-5689-458c-bf31-aff3efba7271",
+      "name": "Upload Images to WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4272,
+        -416
+      ],
+      "notes": "Uploads all 5 images to WordPress media library. Replace YOUR_WORDPRESS_SITE.com"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "626bbe28-e7bd-4e53-ae41-3f4e2a412ec1",
+      "name": "Aggregate All Data",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        4496,
+        -416
+      ],
+      "notes": "Combines all 5 facts with their uploaded images"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the complete SEO/GEO optimized HTML content for WordPress\nconst allFactsData = items[0].json;\nconst todayDate = $('Get Current Date').item.json.today_date;\n\n// Convert aggregated facts to array format\nconst sortedFacts = [];\nfor (let i = 1; i <= 5; i++) {\n  if (allFactsData[`fact_${i}`]) {\n    sortedFacts.push(allFactsData[`fact_${i}`]);\n  }\n}\n\n// Get SEO data from the first fact (all have the same SEO data)\nconst seoData = sortedFacts[0].seo_data;\n\n// Use AI-generated catchy main title\nconst postTitle = seoData.main_title;\n\n// Build GEO-optimized introduction with structured data\nlet htmlContent = `<!-- GEO Summary for AI Search Engines: ${seoData.geo_summary} -->\\n`;\nhtmlContent += `<div class=\"car-facts-intro\" itemscope itemtype=\"https://schema.org/Article\">\\n`;\nhtmlContent += `<meta itemprop=\"headline\" content=\"${postTitle}\"/>\\n`;\nhtmlContent += `<meta itemprop=\"description\" content=\"${seoData.meta_description}\"/>\\n`;\nhtmlContent += `<meta itemprop=\"datePublished\" content=\"${new Date().toISOString()}\"/>\\n`;\nhtmlContent += `<meta itemprop=\"keywords\" content=\"${seoData.keywords.join(', ')}\"/>\\n`;\nhtmlContent += `<p><strong>🚗 On this day in automotive history</strong> — ${todayDate} — discover five game-changing moments that revolutionized the car industry. From legendary debuts to record-breaking achievements, these stories will change how you see automotive history.</p>\\n`;\nhtmlContent += `</div>\\n\\n`;\n\n// Table of Contents for SEO\nhtmlContent += `<div class=\"table-of-contents\" style=\"background: #f8f9fa; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;\">\\n`;\nhtmlContent += `<h2>📋 Quick Navigation</h2>\\n`;\nhtmlContent += `<ol>\\n`;\nsortedFacts.forEach((fact, idx) => {\n  htmlContent += `<li><a href=\"#fact-${idx + 1}\">${fact.catchy_title}</a></li>\\n`;\n});\nhtmlContent += `</ol>\\n`;\nhtmlContent += `</div>\\n\\n`;\n\n// Add each fact with catchy titles and structured data\nsortedFacts.forEach((fact, idx) => {\n  const imageUrl = fact.source_url;\n  const imageId = fact.id;\n  \n  htmlContent += `<div class=\"car-fact-section\" id=\"fact-${idx + 1}\" itemscope itemtype=\"https://schema.org/NewsArticle\">\\n`;\n  \n  // Use catchy AI-generated title\n  htmlContent += `<h2 itemprop=\"headline\">🏆 ${fact.catchy_title}</h2>\\n`;\n  htmlContent += `<p class=\"fact-year\" style=\"color: #666; font-style: italic; margin: 10px 0;\"><strong>Year:</strong> ${fact.year} | <strong>Vehicle:</strong> ${fact.car_model}</p>\\n`;\n  \n  if (imageUrl) {\n    htmlContent += `<figure class=\"wp-block-image size-large\" itemprop=\"image\" itemscope itemtype=\"https://schema.org/ImageObject\">\\n`;\n    htmlContent += `<img src=\"${imageUrl}\" alt=\"${fact.car_model} from ${fact.year} - historic automotive moment\" class=\"wp-image-${imageId}\" style=\"max-width: 100%; height: auto;\" itemprop=\"url\"/>\\n`;\n    htmlContent += `<meta itemprop=\"width\" content=\"1024\"/>\\n`;\n    htmlContent += `<meta itemprop=\"height\" content=\"1024\"/>\\n`;\n    htmlContent += `<figcaption itemprop=\"caption\">${fact.car_model} (${fact.year})</figcaption>\\n`;\n    htmlContent += `</figure>\\n`;\n  }\n  \n  htmlContent += `<div itemprop=\"articleBody\">\\n`;\n  htmlContent += `<p>${fact.fact}</p>\\n`;\n  htmlContent += `</div>\\n`;\n  \n  // Add \"Why This Matters\" section for GEO\n  htmlContent += `<div class=\"impact-section\" style=\"background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;\">\\n`;\n  htmlContent += `<p><strong>💡 Why This Matters:</strong> <em>This moment exemplifies how automotive innovation shaped modern transportation and influenced the industry for decades to come.</em></p>\\n`;\n  htmlContent += `</div>\\n`;\n  \n  htmlContent += `</div>\\n\\n`;\n});\n\n// Add conclusion with internal linking suggestions\nhtmlContent += `<div class=\"car-facts-conclusion\">\\n`;\nhtmlContent += `<hr style=\"margin: 30px 0;\"/>\\n`;\nhtmlContent += `<h3>🎯 Key Takeaways</h3>\\n`;\nhtmlContent += `<p>These ${sortedFacts.length} remarkable events from ${todayDate} demonstrate the continuous evolution of automotive technology and design. From the ${sortedFacts[0].year}s to the ${sortedFacts[sortedFacts.length-1].year}s, each innovation built upon the last, creating the sophisticated vehicles we enjoy today.</p>\\n`;\nhtmlContent += `<p><strong>🔔 Don't miss tomorrow's automotive history!</strong> Subscribe to never miss another fascinating story from the world of cars. Share this with fellow car enthusiasts who appreciate automotive heritage!</p>\\n`;\nhtmlContent += `</div>\\n`;\n\n// FAQ Section for SEO (Schema.org)\nhtmlContent += `<div class=\"faq-section\" itemscope itemtype=\"https://schema.org/FAQPage\" style=\"margin-top: 30px;\">\\n`;\nhtmlContent += `<h3>❓ Frequently Asked Questions</h3>\\n`;\nhtmlContent += `<div itemscope itemprop=\"mainEntity\" itemtype=\"https://schema.org/Question\">\\n`;\nhtmlContent += `<h4 itemprop=\"name\">What significant automotive events happened on ${todayDate}?</h4>\\n`;\nhtmlContent += `<div itemscope itemprop=\"acceptedAnswer\" itemtype=\"https://schema.org/Answer\">\\n`;\nhtmlContent += `<p itemprop=\"text\">On ${todayDate} throughout automotive history, ${sortedFacts.length} major events occurred, including groundbreaking launches, racing victories, and industry milestones spanning from ${sortedFacts[0].year} to ${sortedFacts[sortedFacts.length-1].year}.</p>\\n`;\nhtmlContent += `</div></div>\\n`;\nhtmlContent += `</div>\\n`;\n\nreturn [\n  {\n    json: {\n      title: postTitle,\n      content: htmlContent,\n      excerpt: seoData.meta_description,\n      featured_media_id: sortedFacts[0].id,\n      all_facts: sortedFacts,\n      seo_keywords: seoData.keywords.join(', '),\n      meta_description: seoData.meta_description,\n      geo_summary: seoData.geo_summary,\n      generation_date: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "0edbdc4b-95ab-4423-8732-6d4f53d24179",
+      "name": "Format WordPress Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4720,
+        -416
+      ],
+      "notes": "Creates SEO/GEO optimized HTML with catchy titles, structured data, and schema markup"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_WORDPRESS_SITE.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": {{ $json.content | jsonStringify }},\n  \"excerpt\": \"{{ $json.excerpt }}\",\n  \"status\": \"publish\",\n  \"featured_media\": {{ $json.featured_media_id }},\n  \"categories\": [],\n  \"tags\": [],\n  \"format\": \"standard\",\n  \"comment_status\": \"open\",\n  \"ping_status\": \"open\",\n  \"meta\": {\n    \"_yoast_wpseo_metadesc\": \"{{ $json.meta_description }}\",\n    \"_yoast_wpseo_focuskw\": \"{{ $json.seo_keywords }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "e36de206-4954-49a3-9d19-a8a0f56eda14",
+      "name": "Create WordPress Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4944,
+        -416
+      ],
+      "notes": "Publishes SEO-optimized post to WordPress with Yoast meta fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success-msg",
+              "name": "success_message",
+              "value": "=✅ Successfully published: {{ $json.title.rendered }}",
+              "type": "string"
+            },
+            {
+              "id": "post-url",
+              "name": "post_url",
+              "value": "={{ $json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "post-id",
+              "name": "post_id",
+              "value": "={{ $json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "timestamp",
+              "name": "published_at",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4bfe0ec9-d075-4be3-ab14-cbecd19a9e9c",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5168,
+        -416
+      ],
+      "notes": "Logs successful execution"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        -160
+      ],
+      "id": "a43eeaf1-28c9-42dd-8a03-6ed41ee2b3d6",
+      "name": "Azure OpenAI Chat Model",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "GDhwSriVmTBVYSvC",
+          "name": "Azure Open AI account"
+        }
+      },
+      "notes": "Single chat model for generating facts + SEO + titles. Temperature 0.85 balances accuracy and creativity."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Current Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Date": {
+      "main": [
+        [
+          {
+            "node": "Build Content Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Content Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Generate Everything",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Generate Everything": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Response": {
+      "main": [
+        [
+          {
+            "node": "Stability AI - Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stability AI - Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Process Image Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Image Data": {
+      "main": [
+        [
+          {
+            "node": "Upload Images to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Images to WordPress": {
+      "main": [
+        [
+          {
+            "node": "Aggregate All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate All Data": {
+      "main": [
+        [
+          {
+            "node": "Format WordPress Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format WordPress Content": {
+      "main": [
+        [
+          {
+            "node": "Create WordPress Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create WordPress Post": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Generate Everything",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1cedc074-8f7e-4354-b815-ee2e133b8524",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "80c6fd73bd4bb302c92477dddc93ad60097e16a93b6a4c264a1de3c2670fcb12"
+  },
+  "id": "rZpoSsdhIdYwNo1k",
+  "tags": [
+    {
+      "name": "AI Agents",
+      "id": "CMBH70GoUyyjNhL1",
+      "updatedAt": "2026-03-15T09:56:44.558Z",
+      "createdAt": "2026-03-15T09:56:44.558Z"
+    },
+    {
+      "name": "WordPress",
+      "id": "rkfG6UZtY5C3cajF",
+      "updatedAt": "2026-03-15T09:56:44.563Z",
+      "createdAt": "2026-03-15T09:56:44.563Z"
+    },
+    {
+      "name": "SEO",
+      "id": "SLvGgDSgqsgCgO3a",
+      "updatedAt": "2026-03-15T09:56:44.566Z",
+      "createdAt": "2026-03-15T09:56:44.566Z"
+    },
+    {
+      "name": "Optimized",
+      "id": "VHQGCLu8eVqpUxNX",
+      "updatedAt": "2026-03-15T09:57:24.556Z",
+      "createdAt": "2026-03-15T09:57:24.556Z"
+    }
+  ]
+}

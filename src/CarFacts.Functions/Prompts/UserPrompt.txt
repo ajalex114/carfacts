@@ -1,0 +1,47 @@
+Generate exactly 5 unique and fascinating automotive facts that happened on {{DATE}} throughout history, PLUS create SEO-optimized titles and metadata.
+
+📋 CONTENT REQUIREMENTS:
+- Each fact must be from a DIFFERENT year and DIFFERENT decade
+- Include facts from various eras (1920s through 2020s)
+- Facts MUST be global in nature — cover events from different countries and continents (e.g., USA, Europe, Japan, South Korea, India, Australia, South America). Do NOT focus only on American or European cars
+- Each of the 5 facts must be maximally diversified across ALL of these dimensions:
+  • Geographic region (different countries/continents)
+  • Type of event (mix of: car launches, racing victories, industry milestones, safety innovations, design breakthroughs, regulatory changes, factory openings, concept reveals)
+  • Brand segment (mix of: luxury, mass-market, sports, commercial vehicles, emerging EV brands)
+- Make facts engaging, detailed, and historically accurate
+- Each fact should be 10-20 sentences long with rich context
+- Explain WHY this fact mattered and its impact on the automotive industry
+- Include specific details: locations, people involved, technical specifications when relevant
+- Prioritize facts that marked a REVOLUTION or INNOVATION in the automobile industry — moments that changed how cars were built, sold, driven, or regulated. Examples: first mass-produced car, introduction of ABS, first hybrid vehicle, crash test standards, autonomous driving milestones
+- For each fact, explain the BEFORE and AFTER — what the industry looked like before this event, what changed because of it, and how it influenced the cars we drive today
+
+🎯 SEO & TITLE REQUIREMENTS:
+- The main page title MUST hint at the single most fascinating or surprising fact from the 5 generated facts — tease it enough to spark curiosity without giving it away (e.g., "The Japanese Car That Refused to Die" or "When a Sedan Beat Every Supercar on the Track")
+- Keep it 60-80 characters, catchy and curiosity-driven, but grounded in the actual content — avoid generic clickbait that feels hollow or try-hard
+- Do NOT use overused clickbait phrases like "You Won't Believe" or "Shocking Truth" — instead, let the inherent surprise of the fact itself do the work
+- Create individual CATCHY titles for each fact (40-60 characters each)
+- Use natural intrigue: lean on specifics, unexpected details, and the "wait, really?" factor rather than hype words
+- Include numbers and dates for credibility
+- Make titles feel like something a knowledgeable friend would excitedly tell you, not a tabloid headline
+- Generate SEO meta description (150-160 characters)
+- Generate 5-7 relevant SEO keywords
+- Generate a GEO summary (2-3 sentences optimized for AI search engines like ChatGPT, Perplexity, Claude)
+
+Return ONLY valid JSON with this exact structure (no markdown, no code blocks, just pure JSON):
+{
+  "main_title": "Title highlighting the most jaw-dropping fact — gives a real taste of the content",
+  "meta_description": "SEO-optimized meta description 150-160 characters",
+  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+  "geo_summary": "2-3 sentence summary optimized for AI search engines, focusing on key facts and historical significance",
+  "facts": [
+    {
+      "year": 1955,
+      "catchy_title": "Catchy engaging title for this specific fact",
+      "fact": "On this day in 1955, detailed fascinating fact with rich context and impact analysis",
+      "car_model": "Specific car name or brand involved",
+      "image_prompt": "Detailed visual description: a photorealistic image of [specific car model], [key visual details like color, angle, setting], [historical context], professional automotive photography style, high quality, detailed, 8k"
+    }
+  ]
+}
+
+Make sure the image_prompt is detailed and specific enough for accurate image generation. Include visual details like era-appropriate styling, colors, settings, and atmosphere.
