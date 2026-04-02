@@ -250,6 +250,18 @@
             {
               "name": "Schedule__CronExpression",
               "value": "[parameters('cronExpression')]"
+            },
+            {
+              "name": "WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED",
+              "value": "1"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "1"
+            },
+            {
+              "name": "AI__ImageProvider",
+              "value": "TogetherAI"
             }
           ]
         }
