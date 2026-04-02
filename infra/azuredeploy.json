@@ -200,15 +200,19 @@
               "value": "[concat('https://', variables('keyVaultName'), '.vault.azure.net/')]"
             },
             {
-              "name": "AzureOpenAI__Endpoint",
+              "name": "AI__TextProvider",
+              "value": "AzureOpenAI"
+            },
+            {
+              "name": "AI__AzureOpenAIEndpoint",
               "value": "[parameters('azureOpenAIEndpoint')]"
             },
             {
-              "name": "AzureOpenAI__DeploymentName",
+              "name": "AI__AzureOpenAIDeploymentName",
               "value": "[parameters('azureOpenAIDeploymentName')]"
             },
             {
-              "name": "AzureOpenAI__ApiVersion",
+              "name": "AI__AzureOpenAIApiVersion",
               "value": "2025-01-01-preview"
             },
             {

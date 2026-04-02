@@ -8,17 +8,21 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Serilog;
 
-var logDirectory = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "logs");
-Directory.CreateDirectory(logDirectory);
+var logConfig = new LoggerConfiguration()
+    .MinimumLevel.Debug();
 
-var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .WriteTo.File(
+var isAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
+if (!isAzure)
+{
+    var logDirectory = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "logs");
+    Directory.CreateDirectory(logDirectory);
+    var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+    logConfig.WriteTo.File(
         Path.Combine(logDirectory, $"carfacts-{timestamp}.log"),
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
-    .CreateLogger();
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}");
+}
+
+Log.Logger = logConfig.CreateLogger();
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
@@ -81,7 +85,18 @@ static void RegisterTextProvider(
     bool isLocal)
 {
     var provider = config["AI:TextProvider"] ?? "AzureOpenAI";
-    var apiKey = isLocal ? config["Secrets:AzureOpenAI-ApiKey"] ?? "" : "";
+    string apiKey;
+    if (isLocal)
+    {
+        apiKey = config["Secrets:AzureOpenAI-ApiKey"] ?? "";
+    }
+    else
+    {
+        var vaultUri = config["KeyVault:VaultUri"] ?? "";
+        var client = new Azure.Security.KeyVault.Secrets.SecretClient(
+            new Uri(vaultUri), new Azure.Identity.DefaultAzureCredential());
+        apiKey = client.GetSecret("AzureOpenAI-ApiKey").Value.Value;
+    }
 
     var kernelBuilder = Kernel.CreateBuilder();
 
