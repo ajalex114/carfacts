@@ -24,9 +24,8 @@ if (!isAzure)
 
 Log.Logger = logConfig.CreateLogger();
 
-var host = new HostBuilder()
+var hostBuilder = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
-    .UseSerilog()
     .ConfigureServices((context, services) =>
     {
         services.AddApplicationInsightsTelemetryWorkerService();
@@ -34,8 +33,12 @@ var host = new HostBuilder()
 
         RegisterSettings(context, services);
         RegisterServices(context, services);
-    })
-    .Build();
+    });
+
+if (!isAzure)
+    hostBuilder.UseSerilog();
+
+var host = hostBuilder.Build();
 
 host.Run();
 
@@ -130,37 +133,41 @@ static void RegisterImageProvider(
 {
     var provider = config["AI:ImageProvider"] ?? "StabilityAI";
 
-    switch (provider)
+    if (isLocal)
     {
-        case "TogetherAI":
-            if (isLocal)
-            {
+        // Local: use single provider with caching
+        switch (provider)
+        {
+            case "TogetherAI":
                 services.AddHttpClient<TogetherAIImageGenerationService>();
                 services.AddSingleton<IImageGenerationService>(sp =>
                     new CachedImageGenerationService(
                         sp.GetRequiredService<TogetherAIImageGenerationService>(),
                         sp.GetRequiredService<ILogger<CachedImageGenerationService>>()));
-            }
-            else
-            {
-                services.AddHttpClient<IImageGenerationService, TogetherAIImageGenerationService>();
-            }
-            break;
+                break;
 
-        case "None":
-            break;
+            case "None":
+                break;
 
-        case "StabilityAI":
-        default:
-            if (isLocal)
-            {
+            case "StabilityAI":
+            default:
                 services.AddHttpClient<ImageGenerationService>();
                 services.AddSingleton<IImageGenerationService, CachedImageGenerationService>();
-            }
-            else
-            {
-                services.AddHttpClient<IImageGenerationService, ImageGenerationService>();
-            }
-            break;
+                break;
+        }
+    }
+    else
+    {
+        // Production: fallback chain (StabilityAI → TogetherAI → empty)
+        services.AddHttpClient<ImageGenerationService>();
+        services.AddHttpClient<TogetherAIImageGenerationService>();
+        services.AddSingleton<IImageGenerationService>(sp =>
+            new FallbackImageGenerationService(
+                new IImageGenerationService[]
+                {
+                    sp.GetRequiredService<ImageGenerationService>(),
+                    sp.GetRequiredService<TogetherAIImageGenerationService>()
+                },
+                sp.GetRequiredService<ILogger<FallbackImageGenerationService>>()));
     }
 }

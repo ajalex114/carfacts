@@ -261,7 +261,7 @@
             },
             {
               "name": "AI__ImageProvider",
-              "value": "TogetherAI"
+              "value": "StabilityAI"
             }
           ]
         }

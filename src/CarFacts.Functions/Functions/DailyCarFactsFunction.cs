@@ -42,11 +42,33 @@ public sealed class DailyCarFactsFunction
         var response = await GenerateContentAsync(todayDate, cancellationToken);
 
         if (_wpSettings.SkipImages)
+        {
             await PublishTextOnlyAsync(response, todayDate, cancellationToken);
-        else if (_wpSettings.EmbedImagesAsBase64)
-            await PublishWithEmbeddedImagesAsync(response, todayDate, cancellationToken);
+        }
         else
-            await PublishWithUploadedImagesAsync(response, todayDate, cancellationToken);
+        {
+            var images = await GenerateImagesAsync(response, cancellationToken);
+
+            if (images.Count == 0)
+            {
+                _logger.LogWarning("All image providers failed — publishing text-only");
+                await PublishTextOnlyAsync(response, todayDate, cancellationToken);
+            }
+            else if (_wpSettings.EmbedImagesAsBase64)
+            {
+                _logger.LogInformation("Step 3/4: Skipping media upload — embedding images as base64");
+                var htmlContent = _contentFormatter.FormatPostHtmlWithBase64Images(response, images, todayDate);
+                await CreatePostAsync(response, htmlContent, 0, cancellationToken);
+            }
+            else
+            {
+                _logger.LogInformation("Step 3/4: Uploading images to WordPress");
+                var media = await _wordPressService.UploadImagesAsync(images, response.Facts, cancellationToken);
+                var htmlContent = _contentFormatter.FormatPostHtml(response, media, todayDate);
+                var featuredMediaId = media.FirstOrDefault()?.MediaId ?? 0;
+                await CreatePostAsync(response, htmlContent, featuredMediaId, cancellationToken);
+            }
+        }
     }
 
     private async Task PublishTextOnlyAsync(
@@ -54,33 +76,9 @@ public sealed class DailyCarFactsFunction
         string todayDate,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Steps 2-3 skipped: SkipImages is enabled");
+        _logger.LogInformation("Publishing text-only (no images)");
         var htmlContent = _contentFormatter.FormatPostHtml(response, new List<Models.UploadedMedia>(), todayDate);
         await CreatePostAsync(response, htmlContent, 0, cancellationToken);
-    }
-
-    private async Task PublishWithEmbeddedImagesAsync(
-        Models.CarFactsResponse response,
-        string todayDate,
-        CancellationToken cancellationToken)
-    {
-        var images = await GenerateImagesAsync(response, cancellationToken);
-        _logger.LogInformation("Step 3/4: Skipping media upload — embedding images as base64");
-        var htmlContent = _contentFormatter.FormatPostHtmlWithBase64Images(response, images, todayDate);
-        await CreatePostAsync(response, htmlContent, 0, cancellationToken);
-    }
-
-    private async Task PublishWithUploadedImagesAsync(
-        Models.CarFactsResponse response,
-        string todayDate,
-        CancellationToken cancellationToken)
-    {
-        var images = await GenerateImagesAsync(response, cancellationToken);
-        _logger.LogInformation("Step 3/4: Uploading images to WordPress");
-        var media = await _wordPressService.UploadImagesAsync(images, response.Facts, cancellationToken);
-        var htmlContent = _contentFormatter.FormatPostHtml(response, media, todayDate);
-        var featuredMediaId = media.FirstOrDefault()?.MediaId ?? 0;
-        await CreatePostAsync(response, htmlContent, featuredMediaId, cancellationToken);
     }
 
     private async Task CreatePostAsync(
@@ -103,6 +101,9 @@ public sealed class DailyCarFactsFunction
 
     private static void SaveHtmlDebugFile(string htmlContent)
     {
+        var isAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
+        if (isAzure) return;
+
         var logsDir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "logs");
         Directory.CreateDirectory(logsDir);
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");

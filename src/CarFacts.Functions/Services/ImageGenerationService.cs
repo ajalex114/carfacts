@@ -27,15 +27,25 @@ public sealed class ImageGenerationService : IImageGenerationService
         _logger = logger;
     }
 
+    private const int MaxRetries = 3;
+    private static readonly TimeSpan DelayBetweenRequests = TimeSpan.FromSeconds(2);
+
     public async Task<List<GeneratedImage>> GenerateImagesAsync(List<CarFact> facts, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating {Count} images via Stability AI", facts.Count);
+        _logger.LogInformation("Generating {Count} images via Stability AI (sequential with rate-limit handling)", facts.Count);
 
         var apiKey = await _secretProvider.GetSecretAsync(SecretNames.StabilityAIApiKey, cancellationToken);
-        var tasks = facts.Select((fact, index) => GenerateSingleImageAsync(apiKey, fact, index, cancellationToken));
+        var results = new List<GeneratedImage>();
 
-        var results = await Task.WhenAll(tasks);
-        return results.ToList();
+        for (int i = 0; i < facts.Count; i++)
+        {
+            if (i > 0)
+                await Task.Delay(DelayBetweenRequests, cancellationToken);
+
+            results.Add(await GenerateSingleImageAsync(apiKey, facts[i], i, cancellationToken));
+        }
+
+        return results;
     }
 
     private async Task<GeneratedImage> GenerateSingleImageAsync(string apiKey, CarFact fact, int index, CancellationToken cancellationToken)
@@ -83,19 +93,34 @@ public sealed class ImageGenerationService : IImageGenerationService
     {
         var url = $"{_settings.BaseUrl.TrimEnd('/')}/v1/generation/{_settings.Model}/text-to-image";
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Headers.Add("Authorization", $"Bearer {apiKey}");
-        request.Headers.Add("Accept", "application/json");
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json");
+        for (int attempt = 0; attempt <= MaxRetries; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Add("Authorization", $"Bearer {apiKey}");
+            request.Headers.Add("Accept", "application/json");
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(requestBody),
+                Encoding.UTF8,
+                "application/json");
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ExtractImageBytes(responseJson);
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && attempt < MaxRetries)
+            {
+                var backoff = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1));
+                _logger.LogWarning("Rate limited (429). Retrying in {Seconds}s (attempt {Attempt}/{Max})",
+                    backoff.TotalSeconds, attempt + 1, MaxRetries);
+                await Task.Delay(backoff, cancellationToken);
+                continue;
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            return ExtractImageBytes(responseJson);
+        }
+
+        throw new InvalidOperationException("Unexpected: retry loop exited without returning or throwing");
     }
 
     private static byte[] ExtractImageBytes(string responseJson)

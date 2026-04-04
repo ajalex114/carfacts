@@ -108,14 +108,30 @@ public class ImageGenerationServiceTests
     }
 
     [Fact]
-    public async Task GenerateImagesAsync_WhenApiFails_ThrowsHttpRequestException()
+    public async Task GenerateImagesAsync_WhenRateLimitedAndRetriesExhausted_ThrowsHttpRequestException()
     {
         var facts = TestDataBuilder.CreateValidResponse().Facts.Take(1).ToList();
-        _handler.EnqueueResponse(HttpStatusCode.TooManyRequests, "{}");
+        // 1 initial + 3 retries = 4 responses needed to exhaust
+        for (int i = 0; i < 4; i++)
+            _handler.EnqueueResponse(HttpStatusCode.TooManyRequests, "{}");
 
         var act = () => _sut.GenerateImagesAsync(facts);
 
         await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task GenerateImagesAsync_WhenRateLimitedThenSucceeds_ReturnsImage()
+    {
+        var facts = TestDataBuilder.CreateValidResponse().Facts.Take(1).ToList();
+        // First attempt: 429, second attempt: success
+        _handler.EnqueueResponse(HttpStatusCode.TooManyRequests, "{}");
+        _handler.EnqueueResponse(HttpStatusCode.OK, TestDataBuilder.CreateStabilityAIResponseJson());
+
+        var result = await _sut.GenerateImagesAsync(facts);
+
+        result.Should().HaveCount(1);
+        _handler.SentRequests.Should().HaveCount(2);
     }
 
     [Fact]
