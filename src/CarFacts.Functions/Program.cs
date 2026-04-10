@@ -77,6 +77,7 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
 
     // Content generation (uses SK's IChatCompletionService)
     services.AddSingleton<IContentGenerationService, ContentGenerationService>();
+    services.AddSingleton<ISeoGenerationService, SeoGenerationService>();
 
     // Other services
     services.AddSingleton<IContentFormatterService, ContentFormatterService>();

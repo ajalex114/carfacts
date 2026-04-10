@@ -47,7 +47,7 @@ public sealed class WordPressService : IWordPressService
         foreach (var image in images)
         {
             var fact = facts[image.FactIndex];
-            var media = await UploadSingleImageAsync(authHeader, image, fact, cancellationToken);
+            var media = await UploadSingleImageInternalAsync(authHeader, image, fact, 0, cancellationToken);
             results.Add(media);
         }
 
@@ -113,10 +113,98 @@ public sealed class WordPressService : IWordPressService
         }
     }
 
-    private async Task<UploadedMedia> UploadSingleImageAsync(
+    public async Task<WordPressPostResult> CreateDraftPostAsync(
+        string title,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Creating WordPress draft post: {Title}", title);
+
+        var authHeader = await BuildAuthHeaderAsync(cancellationToken);
+        var siteId = GetSiteId();
+        var url = $"{ApiBase}/{siteId}/posts/new";
+
+        var postBody = new { title, status = "draft", format = "standard" };
+        var jsonPayload = JsonSerializer.Serialize(postBody);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Authorization = authHeader;
+        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("WordPress draft creation failed ({Status}): {Body}", response.StatusCode, errorBody);
+        }
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        var result = ParsePostResponse(responseJson);
+        _logger.LogInformation("Draft post created: ID={PostId}", result.PostId);
+        return result;
+    }
+
+    public async Task<WordPressPostResult> UpdateAndPublishPostAsync(
+        int postId,
+        string title,
+        string htmlContent,
+        string excerpt,
+        int featuredMediaId,
+        string seoKeywords,
+        string metaDescription,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Updating and publishing WordPress post {PostId}: {Title}", postId, title);
+
+        var authHeader = await BuildAuthHeaderAsync(cancellationToken);
+        var siteId = GetSiteId();
+        var url = $"{ApiBase}/{siteId}/posts/{postId}";
+
+        var postBody = new
+        {
+            title,
+            content = htmlContent,
+            excerpt,
+            status = _settings.PostStatus,
+            featured_image = featuredMediaId,
+            format = "standard",
+            comments_open = true
+        };
+        var jsonPayload = JsonSerializer.Serialize(postBody);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Authorization = authHeader;
+        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("WordPress post update failed ({Status}): {Body}", response.StatusCode, errorBody);
+        }
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        var result = ParsePostResponse(responseJson);
+        _logger.LogInformation("Post published: ID={PostId}, URL={PostUrl}", result.PostId, result.PostUrl);
+        return result;
+    }
+
+    public async Task<UploadedMedia> UploadSingleImageAsync(
+        GeneratedImage image,
+        CarFact fact,
+        int parentPostId,
+        CancellationToken cancellationToken = default)
+    {
+        var authHeader = await BuildAuthHeaderAsync(cancellationToken);
+        return await UploadSingleImageInternalAsync(authHeader, image, fact, parentPostId, cancellationToken);
+    }
+
+    private async Task<UploadedMedia> UploadSingleImageInternalAsync(
         AuthenticationHeaderValue authHeader,
         GeneratedImage image,
         CarFact fact,
+        int parentPostId,
         CancellationToken cancellationToken)
     {
         var siteId = GetSiteId();
@@ -130,12 +218,17 @@ public sealed class WordPressService : IWordPressService
         imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
         content.Add(imageContent, "media[]", image.FileName);
 
-        var attrs = JsonSerializer.Serialize(new
+        var attrsObj = new Dictionary<string, object>
         {
-            title = $"{fact.CarModel} ({fact.Year})",
-            caption = fact.CatchyTitle,
-            alt = $"{fact.CarModel} from {fact.Year} - historic automotive moment"
-        });
+            ["title"] = $"{fact.CarModel} ({fact.Year})",
+            ["caption"] = fact.CatchyTitle,
+            ["alt"] = $"{fact.CarModel} from {fact.Year} - historic automotive moment"
+        };
+        if (parentPostId > 0)
+        {
+            attrsObj["parent_id"] = parentPostId;
+        }
+        var attrs = JsonSerializer.Serialize(attrsObj);
         content.Add(new StringContent(attrs, Encoding.UTF8, "application/json"), "attrs[]");
         request.Content = content;
 

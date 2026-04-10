@@ -13,6 +13,7 @@
     <PackageReference Include="Azure.Identity" Version="1.13.2" />
     <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.7.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.DurableTask" Version="1.1.6" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.2.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.0" />
@@ -35,5 +36,7 @@
     </None>
     <EmbeddedResource Include="Prompts\SystemPrompt.txt" />
     <EmbeddedResource Include="Prompts\UserPrompt.txt" />
+    <EmbeddedResource Include="Prompts\SeoSystemPrompt.txt" />
+    <EmbeddedResource Include="Prompts\SeoUserPrompt.txt" />
   </ItemGroup>
 </Project>

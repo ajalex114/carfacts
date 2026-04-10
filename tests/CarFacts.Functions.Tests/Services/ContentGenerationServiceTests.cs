@@ -43,22 +43,21 @@ public class ContentGenerationServiceTests
     [Fact]
     public async Task GenerateFactsAsync_WithValidResponse_ReturnsParsedFacts()
     {
-        var expected = TestDataBuilder.CreateValidResponse();
+        var expected = TestDataBuilder.CreateValidRawContent();
         var json = JsonSerializer.Serialize(expected);
         SetupChatResponse(json);
 
         var result = await _sut.GenerateFactsAsync("March 21");
 
-        result.MainTitle.Should().Be(expected.MainTitle);
         result.Facts.Should().HaveCount(5);
-        result.Keywords.Should().NotBeEmpty();
-        result.MetaDescription.Should().NotBeNullOrWhiteSpace();
+        result.Facts[0].CarModel.Should().NotBeNullOrWhiteSpace();
+        result.Facts[0].Fact.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public async Task GenerateFactsAsync_WithMarkdownWrappedJson_ParsesSuccessfully()
     {
-        var expected = TestDataBuilder.CreateValidResponse();
+        var expected = TestDataBuilder.CreateValidRawContent();
         var json = JsonSerializer.Serialize(expected);
         SetupChatResponse($"```json\n{json}\n```");
 
@@ -70,7 +69,7 @@ public class ContentGenerationServiceTests
     [Fact]
     public async Task GenerateFactsAsync_WithWrongFactCount_ThrowsException()
     {
-        var badResponse = TestDataBuilder.CreateValidResponse(factCount: 3);
+        var badResponse = TestDataBuilder.CreateValidRawContent(factCount: 3);
         SetupChatResponse(JsonSerializer.Serialize(badResponse));
 
         var act = () => _sut.GenerateFactsAsync("March 21");
@@ -80,16 +79,16 @@ public class ContentGenerationServiceTests
     }
 
     [Fact]
-    public async Task GenerateFactsAsync_WithMissingTitle_ThrowsException()
+    public async Task GenerateFactsAsync_WithMissingFact_ThrowsException()
     {
-        var badResponse = TestDataBuilder.CreateValidResponse();
-        badResponse.MainTitle = "";
+        var badResponse = TestDataBuilder.CreateValidRawContent();
+        badResponse.Facts[0].Fact = "";
         SetupChatResponse(JsonSerializer.Serialize(badResponse));
 
         var act = () => _sut.GenerateFactsAsync("March 21");
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*missing main_title*");
+            .WithMessage("*Fact 1 is missing required fields*");
     }
 
     [Fact]

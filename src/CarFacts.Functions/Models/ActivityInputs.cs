@@ -1,0 +1,35 @@
+namespace CarFacts.Functions.Models;
+
+/// <summary>
+/// Input for the image upload activity.
+/// </summary>
+public sealed class UploadImageInput
+{
+    public GeneratedImage Image { get; set; } = null!;
+    public CarFact Fact { get; set; } = null!;
+    public int ParentPostId { get; set; }
+}
+
+/// <summary>
+/// Input for the format-and-publish activity.
+/// </summary>
+public sealed class PublishInput
+{
+    public RawCarFactsContent Content { get; set; } = null!;
+    public SeoMetadata Seo { get; set; } = null!;
+    public List<UploadedMedia> Media { get; set; } = [];
+    public string TodayDate { get; set; } = string.Empty;
+    public int DraftPostId { get; set; }
+}
+
+/// <summary>
+/// Input for a social media publish activity.
+/// </summary>
+public sealed class SocialPublishInput
+{
+    public string Teaser { get; set; } = string.Empty;
+    public string PostUrl { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public List<string> Hashtags { get; set; } = [];
+    public string Platform { get; set; } = string.Empty;
+}

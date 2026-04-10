@@ -17,6 +17,17 @@ public static class PromptLoader
         return template.Replace("{{DATE}}", todayDate);
     }
 
+    public static string LoadSeoSystemPrompt()
+    {
+        return LoadResource("CarFacts.Functions.Prompts.SeoSystemPrompt.txt");
+    }
+
+    public static string LoadSeoUserPrompt(string contentSummary)
+    {
+        var template = LoadResource("CarFacts.Functions.Prompts.SeoUserPrompt.txt");
+        return template.Replace("{{CONTENT}}", contentSummary);
+    }
+
     private static string LoadResource(string resourceName)
     {
         using var stream = Assembly.GetManifestResourceStream(resourceName)

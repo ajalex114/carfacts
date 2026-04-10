@@ -1,4 +1,4 @@
-Generate exactly 5 unique and fascinating automotive facts that happened on {{DATE}} throughout history, PLUS create SEO-optimized titles and metadata.
+Generate exactly 5 unique and fascinating automotive facts that happened on {{DATE}} throughout history.
 
 📋 CONTENT REQUIREMENTS:
 - Each fact must be from a DIFFERENT year and DIFFERENT decade
@@ -14,34 +14,10 @@ Generate exactly 5 unique and fascinating automotive facts that happened on {{DA
 - Include specific details: locations, people involved, technical specifications when relevant
 - Prioritize facts that marked a REVOLUTION or INNOVATION in the automobile industry — moments that changed how cars were built, sold, driven, or regulated. Examples: first mass-produced car, introduction of ABS, first hybrid vehicle, crash test standards, autonomous driving milestones
 - For each fact, explain the BEFORE and AFTER — what the industry looked like before this event, what changed because of it, and how it influenced the cars we drive today
-
-🎯 SEO & TITLE REQUIREMENTS:
-- The main page title MUST hint at the single most fascinating or surprising fact from the 5 generated facts — tease it enough to spark curiosity without giving it away (e.g., "The Japanese Car That Refused to Die" or "When a Sedan Beat Every Supercar on the Track")
-- Keep it 60-80 characters, catchy and curiosity-driven, but grounded in the actual content — avoid generic clickbait that feels hollow or try-hard
-- Do NOT use overused clickbait phrases like "You Won't Believe" or "Shocking Truth" — instead, let the inherent surprise of the fact itself do the work
 - Create individual CATCHY titles for each fact (40-60 characters each)
-- Use natural intrigue: lean on specifics, unexpected details, and the "wait, really?" factor rather than hype words
-- Include numbers and dates for credibility
-- Make titles feel like something a knowledgeable friend would excitedly tell you, not a tabloid headline
-- Generate SEO meta description (150-160 characters)
-- Generate 5-7 relevant SEO keywords
-- Generate a GEO summary (2-3 sentences optimized for AI search engines like ChatGPT, Perplexity, Claude)
-- Generate a social media teaser (1-2 punchy sentences, max 200 characters). Write it like a real person casually sharing something cool they just learned — not a headline or ad. It should tease ONE surprising detail and make people want to click. Example tone: "TIL a Volvo patent saved millions of lives… and they gave it away for free. Wild story 👇"
-- Generate 6-8 social media hashtags optimized for engagement on Twitter/X, Facebook, and Reddit. These are NOT the same as SEO keywords — they should be:
-  • Trending/community hashtags that car enthusiasts actually use (e.g., #CarHistory, #ClassicCars, #OnThisDay, #TIL, #Petrolhead)
-  • A mix of broad reach tags (#Cars, #Automotive) and niche tags specific to the facts (#F1, #JDM, #EVs, #Rally)
-  • Short, punchy, no spaces — CamelCase style (e.g., #AutomotiveHistory not #automotive_history)
-  • Include at least one "today" or "history" tag (e.g., #OnThisDay, #TodayInHistory, #TIL)
-  • Do NOT just repeat the SEO keywords with a # prefix — think about what people actually follow and search on social media
 
 Return ONLY valid JSON with this exact structure (no markdown, no code blocks, just pure JSON):
 {
-  "main_title": "Title highlighting the most jaw-dropping fact — gives a real taste of the content",
-  "meta_description": "SEO-optimized meta description 150-160 characters",
-  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-  "geo_summary": "2-3 sentence summary optimized for AI search engines, focusing on key facts and historical significance",
-  "social_media_teaser": "Brief, human-sounding teaser that makes people want to click — max 200 chars",
-  "social_media_hashtags": ["#CarHistory", "#OnThisDay", "#ClassicCars", "#TIL", "#Automotive", "#Petrolhead"],
   "facts": [
     {
       "year": 1955,

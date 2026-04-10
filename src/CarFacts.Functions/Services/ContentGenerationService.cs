@@ -21,7 +21,7 @@ public sealed class ContentGenerationService : IContentGenerationService
         _logger = logger;
     }
 
-    public async Task<CarFactsResponse> GenerateFactsAsync(string todayDate, CancellationToken cancellationToken = default)
+    public async Task<RawCarFactsContent> GenerateFactsAsync(string todayDate, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating car facts for {Date} via Semantic Kernel", todayDate);
 
@@ -42,14 +42,14 @@ public sealed class ContentGenerationService : IContentGenerationService
         return history;
     }
 
-    private CarFactsResponse ParseResponse(string content)
+    private RawCarFactsContent ParseResponse(string content)
     {
         var cleaned = CleanJsonResponse(content);
-        var result = JsonSerializer.Deserialize<CarFactsResponse>(cleaned)
+        var result = JsonSerializer.Deserialize<RawCarFactsContent>(cleaned)
             ?? throw new InvalidOperationException("Failed to deserialize AI response");
 
         ValidateResponse(result);
-        _logger.LogInformation("Generated {FactCount} facts with title: {Title}", result.Facts.Count, result.MainTitle);
+        _logger.LogInformation("Generated {FactCount} facts", result.Facts.Count);
 
         return result;
     }
@@ -66,11 +66,8 @@ public sealed class ContentGenerationService : IContentGenerationService
             .Trim();
     }
 
-    private static void ValidateResponse(CarFactsResponse response)
+    private static void ValidateResponse(RawCarFactsContent response)
     {
-        if (string.IsNullOrWhiteSpace(response.MainTitle))
-            throw new InvalidOperationException("AI response missing main_title");
-
         if (response.Facts.Count != 5)
             throw new InvalidOperationException($"Expected 5 facts, got {response.Facts.Count}");
 

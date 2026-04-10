@@ -16,6 +16,27 @@ public static class TestDataBuilder
         };
     }
 
+    public static RawCarFactsContent CreateValidRawContent(int factCount = 5)
+    {
+        return new RawCarFactsContent
+        {
+            Facts = Enumerable.Range(0, factCount).Select(i => CreateFact(i)).ToList()
+        };
+    }
+
+    public static SeoMetadata CreateValidSeoMetadata()
+    {
+        return new SeoMetadata
+        {
+            MainTitle = "5 Shocking Car Moments from March 21 That Rewrote History",
+            MetaDescription = "Discover 5 incredible automotive milestones that happened on March 21 throughout history, from iconic launches to racing legends.",
+            Keywords = ["automotive history", "car facts", "March 21", "classic cars", "car milestones"],
+            GeoSummary = "On March 21 throughout automotive history, five major events shaped the car industry.",
+            SocialMediaTeaser = "🚗 Did you know these 5 wild car facts from March 21?",
+            SocialMediaHashtags = ["#CarFacts", "#AutomotiveHistory", "#ThisDayInHistory"]
+        };
+    }
+
     public static CarFact CreateFact(int index = 0)
     {
         var decades = new[] { 1935, 1957, 1972, 1988, 2015 };

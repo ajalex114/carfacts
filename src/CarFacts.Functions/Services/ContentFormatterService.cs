@@ -20,6 +20,22 @@ public sealed class ContentFormatterService : IContentFormatterService
         return sb.ToString();
     }
 
+    public string FormatPostHtml(RawCarFactsContent content, SeoMetadata seo, List<UploadedMedia> media, string todayDate)
+    {
+        // Bridge: compose a CarFactsResponse from the split models
+        var response = new CarFactsResponse
+        {
+            MainTitle = seo.MainTitle,
+            MetaDescription = seo.MetaDescription,
+            Keywords = seo.Keywords,
+            GeoSummary = seo.GeoSummary,
+            SocialMediaTeaser = seo.SocialMediaTeaser,
+            SocialMediaHashtags = seo.SocialMediaHashtags,
+            Facts = content.Facts
+        };
+        return FormatPostHtml(response, media, todayDate);
+    }
+
     private static void AppendGeoHeader(StringBuilder sb, CarFactsResponse response, string todayDate)
     {
         var escapedTitle = HttpUtility.HtmlEncode(response.MainTitle);
