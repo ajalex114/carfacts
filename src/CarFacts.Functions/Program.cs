@@ -214,7 +214,14 @@ static void RegisterCosmosDb(
 
     if (!string.IsNullOrEmpty(connectionString))
     {
-        services.AddSingleton(new Microsoft.Azure.Cosmos.CosmosClient(connectionString));
+        services.AddSingleton(new Microsoft.Azure.Cosmos.CosmosClient(connectionString,
+            new Microsoft.Azure.Cosmos.CosmosClientOptions
+            {
+                SerializerOptions = new Microsoft.Azure.Cosmos.CosmosSerializationOptions
+                {
+                    PropertyNamingPolicy = Microsoft.Azure.Cosmos.CosmosPropertyNamingPolicy.CamelCase
+                }
+            }));
         services.AddSingleton<IFactKeywordStore, CosmosFactKeywordStore>();
     }
     else
