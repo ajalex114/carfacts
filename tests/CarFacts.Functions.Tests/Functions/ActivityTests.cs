@@ -58,68 +58,46 @@ public class ActivityTests
 
     #endregion
 
-    #region GenerateSingleImageActivity
+    #region GenerateAllImagesActivity
 
     [Fact]
-    public async Task GenerateSingleImage_WhenSuccessful_ReturnsImage()
+    public async Task GenerateAllImages_WhenSuccessful_ReturnsImages()
     {
-        var fact = TestDataBuilder.CreateFact(0);
-        var expectedImage = new GeneratedImage
-        {
-            FactIndex = 0,
-            ImageData = [0x89, 0x50, 0x4E, 0x47],
-            FileName = "test.png"
-        };
+        var facts = TestDataBuilder.CreateValidRawContent().Facts;
+        var expectedImages = TestDataBuilder.CreateGeneratedImages();
 
         var imageService = new Mock<IImageGenerationService>();
         imageService
-            .Setup(s => s.GenerateImagesAsync(It.IsAny<List<CarFact>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([expectedImage]);
+            .Setup(s => s.GenerateImagesAsync(facts, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedImages);
 
-        var activity = new GenerateSingleImageActivity(
+        var activity = new GenerateAllImagesActivity(
             imageService.Object,
-            Mock.Of<ILogger<GenerateSingleImageActivity>>());
+            Mock.Of<ILogger<GenerateAllImagesActivity>>());
 
-        var result = await activity.Run(fact);
+        var result = await activity.Run(facts);
 
-        result.Should().NotBeNull();
-        result!.FileName.Should().Be("test.png");
+        result.Should().HaveCount(5);
+        result[0].FactIndex.Should().Be(0);
+        result[4].FactIndex.Should().Be(4);
     }
 
     [Fact]
-    public async Task GenerateSingleImage_WhenFails_ReturnsNull()
+    public async Task GenerateAllImages_WhenFails_ReturnsEmptyList()
     {
-        var fact = TestDataBuilder.CreateFact(0);
-        var imageService = new Mock<IImageGenerationService>();
-        imageService
-            .Setup(s => s.GenerateImagesAsync(It.IsAny<List<CarFact>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
-
-        var activity = new GenerateSingleImageActivity(
-            imageService.Object,
-            Mock.Of<ILogger<GenerateSingleImageActivity>>());
-
-        var result = await activity.Run(fact);
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GenerateSingleImage_WhenThrows_ReturnsNull()
-    {
-        var fact = TestDataBuilder.CreateFact(0);
+        var facts = TestDataBuilder.CreateValidRawContent().Facts;
         var imageService = new Mock<IImageGenerationService>();
         imageService
             .Setup(s => s.GenerateImagesAsync(It.IsAny<List<CarFact>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Rate limited"));
 
-        var activity = new GenerateSingleImageActivity(
+        var activity = new GenerateAllImagesActivity(
             imageService.Object,
-            Mock.Of<ILogger<GenerateSingleImageActivity>>());
+            Mock.Of<ILogger<GenerateAllImagesActivity>>());
 
-        var result = await activity.Run(fact);
+        var result = await activity.Run(facts);
 
-        result.Should().BeNull();
+        result.Should().BeEmpty();
     }
 
     #endregion

@@ -41,28 +41,24 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("Generated {Count} facts, starting SEO + image generation", content.Facts.Count);
 
-        // Steps 2 & 3: SEO + images in parallel (fan-out)
+        // Steps 2 & 3: SEO + images in parallel
+        // SEO runs as one LLM call; images run sequentially inside one activity
+        // (image APIs rate-limit, so per-image fan-out causes 429 failures)
         var seoTask = context.CallActivityAsync<SeoMetadata>(
             nameof(GenerateSeoActivity),
             content,
             new TaskOptions(LlmRetryPolicy));
 
-        var imageTasks = content.Facts.Select(fact =>
-            context.CallActivityAsync<GeneratedImage?>(
-                nameof(GenerateSingleImageActivity),
-                fact,
-                new TaskOptions(ImageRetryPolicy))).ToList();
+        var imagesTask = context.CallActivityAsync<List<GeneratedImage>>(
+            nameof(GenerateAllImagesActivity),
+            content.Facts,
+            new TaskOptions(ImageRetryPolicy));
 
-        // Wait for all to complete
-        await seoTask;
-        await Task.WhenAll(imageTasks);
+        // Wait for both to complete
+        await Task.WhenAll(seoTask, imagesTask);
 
         var seo = seoTask.Result;
-        var images = imageTasks
-            .Select(t => t.Result)
-            .Where(img => img != null)
-            .Cast<GeneratedImage>()
-            .ToList();
+        var images = imagesTask.Result;
 
         logger.LogInformation("SEO: {Title} | {ImageCount} images generated", seo.MainTitle, images.Count);
 
