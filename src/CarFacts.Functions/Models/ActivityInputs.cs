@@ -21,6 +21,7 @@ public sealed class PublishInput
     public string TodayDate { get; set; } = string.Empty;
     public int DraftPostId { get; set; }
     public List<BacklinkSuggestion> Backlinks { get; set; } = [];
+    public List<RelatedPostSuggestion> RelatedPosts { get; set; } = [];
 }
 
 /// <summary>
@@ -45,6 +46,9 @@ public sealed class StoreFactKeywordsInput
     public string PostUrl { get; set; } = string.Empty;
     public DateTime PublishDate { get; set; }
     public List<BacklinkSuggestion> Backlinks { get; set; } = [];
+    public List<RelatedPostSuggestion> RelatedPosts { get; set; } = [];
+    public List<UploadedMedia> Media { get; set; } = [];
+    public string PostTitle { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -54,4 +58,13 @@ public sealed class FindBacklinksInput
 {
     public List<FactKeywordEntry> FactKeywords { get; set; } = [];
     public string CurrentPostUrl { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Combined result from backlink + related post lookups.
+/// </summary>
+public sealed class BacklinksResult
+{
+    public List<BacklinkSuggestion> Backlinks { get; set; } = [];
+    public List<RelatedPostSuggestion> RelatedPosts { get; set; } = [];
 }

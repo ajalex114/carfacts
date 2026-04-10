@@ -17,6 +17,16 @@ public interface IFactKeywordStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Finds related posts (distinct by postUrl) that share keywords with any of the given keywords.
+    /// Returns records grouped by post, preferring posts with lower total backlinkCount.
+    /// Excludes the current post URL.
+    /// </summary>
+    Task<List<FactKeywordRecord>> FindRelatedPostCandidatesAsync(
+        List<string> allKeywords,
+        string excludePostUrl,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Increments the backlinkCount for each specified record ID.
     /// </summary>
     Task IncrementBacklinkCountsAsync(IEnumerable<string> recordIds, CancellationToken cancellationToken = default);

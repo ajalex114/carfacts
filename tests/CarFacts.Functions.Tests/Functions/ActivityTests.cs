@@ -163,7 +163,7 @@ public class ActivityTests
 
         var formatter = new Mock<IContentFormatterService>();
         formatter
-            .Setup(s => s.FormatPostHtml(It.IsAny<RawCarFactsContent>(), It.IsAny<SeoMetadata>(), It.IsAny<List<UploadedMedia>>(), It.IsAny<string>(), It.IsAny<List<BacklinkSuggestion>>()))
+            .Setup(s => s.FormatPostHtml(It.IsAny<RawCarFactsContent>(), It.IsAny<SeoMetadata>(), It.IsAny<List<UploadedMedia>>(), It.IsAny<string>(), It.IsAny<List<BacklinkSuggestion>>(), It.IsAny<List<RelatedPostSuggestion>>()))
             .Returns("<p>HTML</p>");
 
         var wpService = new Mock<IWordPressService>();
@@ -206,7 +206,7 @@ public class ActivityTests
 
         var formatter = new Mock<IContentFormatterService>();
         formatter
-            .Setup(s => s.FormatPostHtml(It.IsAny<RawCarFactsContent>(), It.IsAny<SeoMetadata>(), It.IsAny<List<UploadedMedia>>(), It.IsAny<string>(), It.IsAny<List<BacklinkSuggestion>>()))
+            .Setup(s => s.FormatPostHtml(It.IsAny<RawCarFactsContent>(), It.IsAny<SeoMetadata>(), It.IsAny<List<UploadedMedia>>(), It.IsAny<string>(), It.IsAny<List<BacklinkSuggestion>>(), It.IsAny<List<RelatedPostSuggestion>>()))
             .Returns("<p>HTML</p>");
 
         var wpService = new Mock<IWordPressService>();

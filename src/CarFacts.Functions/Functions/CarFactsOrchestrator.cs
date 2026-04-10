@@ -62,11 +62,11 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("SEO: {Title} | {ImageCount} images generated", seo.MainTitle, images.Count);
 
-        // Step 3.5: Find related backlinks from Cosmos DB based on fact keywords
-        var backlinks = new List<BacklinkSuggestion>();
+        // Step 3.5: Find related backlinks + related posts from Cosmos DB
+        var backlinksResult = new BacklinksResult();
         try
         {
-            backlinks = await context.CallActivityAsync<List<BacklinkSuggestion>>(
+            backlinksResult = await context.CallActivityAsync<BacklinksResult>(
                 nameof(FindBacklinksActivity),
                 new FindBacklinksInput
                 {
@@ -74,7 +74,8 @@ public static class CarFactsOrchestrator
                     CurrentPostUrl = "" // Not published yet — no URL to exclude
                 },
                 new TaskOptions(WordPressRetryPolicy));
-            logger.LogInformation("Found {Count} backlink suggestions", backlinks.Count);
+            logger.LogInformation("Found {Backlinks} backlinks + {Related} related posts",
+                backlinksResult.Backlinks.Count, backlinksResult.RelatedPosts.Count);
         }
         catch (Exception ex)
         {
@@ -82,6 +83,7 @@ public static class CarFactsOrchestrator
         }
 
         WordPressPostResult publishResult;
+        var uploadedMedia = new List<UploadedMedia>();
 
         if (images.Count > 0)
         {
@@ -105,9 +107,9 @@ public static class CarFactsOrchestrator
                     },
                     new TaskOptions(WordPressRetryPolicy))).ToList();
 
-            var media = (await Task.WhenAll(uploadTasks)).ToList();
+            uploadedMedia = (await Task.WhenAll(uploadTasks)).ToList();
 
-            logger.LogInformation("Uploaded {Count} images to WordPress", media.Count);
+            logger.LogInformation("Uploaded {Count} images to WordPress", uploadedMedia.Count);
 
             // Step 6: Format HTML, update draft, and publish
             publishResult = await context.CallActivityAsync<WordPressPostResult>(
@@ -116,10 +118,11 @@ public static class CarFactsOrchestrator
                 {
                     Content = content,
                     Seo = seo,
-                    Media = media,
+                    Media = uploadedMedia,
                     TodayDate = todayDate,
                     DraftPostId = draft.PostId,
-                    Backlinks = backlinks
+                    Backlinks = backlinksResult.Backlinks,
+                    RelatedPosts = backlinksResult.RelatedPosts
                 },
                 new TaskOptions(WordPressRetryPolicy));
         }
@@ -137,7 +140,8 @@ public static class CarFactsOrchestrator
                     Media = [],
                     TodayDate = todayDate,
                     DraftPostId = 0,
-                    Backlinks = backlinks
+                    Backlinks = backlinksResult.Backlinks,
+                    RelatedPosts = backlinksResult.RelatedPosts
                 },
                 new TaskOptions(WordPressRetryPolicy));
         }
@@ -164,7 +168,10 @@ public static class CarFactsOrchestrator
                 Seo = seo,
                 PostUrl = publishResult.PostUrl,
                 PublishDate = context.CurrentUtcDateTime,
-                Backlinks = backlinks
+                Backlinks = backlinksResult.Backlinks,
+                RelatedPosts = backlinksResult.RelatedPosts,
+                Media = uploadedMedia,
+                PostTitle = seo.MainTitle
             },
             new TaskOptions(WordPressRetryPolicy));
 

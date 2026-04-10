@@ -14,6 +14,9 @@ public sealed class FactKeywordRecord
     [JsonPropertyName("postUrl")]
     public string PostUrl { get; set; } = string.Empty;
 
+    [JsonPropertyName("postTitle")]
+    public string PostTitle { get; set; } = string.Empty;
+
     [JsonPropertyName("anchorId")]
     public string AnchorId { get; set; } = string.Empty;
 
@@ -28,6 +31,9 @@ public sealed class FactKeywordRecord
 
     [JsonPropertyName("year")]
     public int Year { get; set; }
+
+    [JsonPropertyName("imageUrl")]
+    public string ImageUrl { get; set; } = string.Empty;
 
     [JsonPropertyName("keywords")]
     public List<string> Keywords { get; set; } = [];

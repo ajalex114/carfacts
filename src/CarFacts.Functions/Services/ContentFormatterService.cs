@@ -21,7 +21,7 @@ public sealed class ContentFormatterService : IContentFormatterService
         return sb.ToString();
     }
 
-    public string FormatPostHtml(RawCarFactsContent content, SeoMetadata seo, List<UploadedMedia> media, string todayDate, List<BacklinkSuggestion>? backlinks = null)
+    public string FormatPostHtml(RawCarFactsContent content, SeoMetadata seo, List<UploadedMedia> media, string todayDate, List<BacklinkSuggestion>? backlinks = null, List<RelatedPostSuggestion>? relatedPosts = null)
     {
         // Bridge: compose a CarFactsResponse from the split models
         var response = new CarFactsResponse
@@ -41,7 +41,11 @@ public sealed class ContentFormatterService : IContentFormatterService
         AppendTableOfContents(sb, response.Facts);
         AppendFactSectionsWithBacklinks(sb, response.Facts, media, backlinks ?? []);
         AppendConclusion(sb, response.Facts, todayDate);
-        AppendFaqSection(sb, response.Facts, todayDate);
+
+        if (relatedPosts is not null && relatedPosts.Count > 0)
+            AppendRelatedPostsSection(sb, relatedPosts);
+        else
+            AppendFaqSection(sb, response.Facts, todayDate);
 
         return sb.ToString();
     }
@@ -219,6 +223,38 @@ public sealed class ContentFormatterService : IContentFormatterService
             "And hey, share this with your car-nerd friends!</p>");
         sb.AppendLine("</div>");
         sb.AppendLine();
+    }
+
+    private static void AppendRelatedPostsSection(StringBuilder sb, List<RelatedPostSuggestion> relatedPosts)
+    {
+        sb.AppendLine("""<div class="related-posts-section" style="margin-top: 30px;">""");
+        sb.AppendLine("""<hr style="margin: 30px 0;"/>""");
+        sb.AppendLine("<h3>🔍 You Might Also Find These Interesting</h3>");
+        sb.AppendLine("""<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 15px;">""");
+
+        foreach (var post in relatedPosts)
+        {
+            var escapedTitle = HttpUtility.HtmlEncode(post.PostTitle);
+            var escapedUrl = HttpUtility.HtmlEncode(post.PostUrl);
+
+            sb.AppendLine("""<div style="flex: 1 1 calc(50% - 12px); min-width: 200px; max-width: calc(50% - 6px); border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fafafa;">""");
+
+            if (!string.IsNullOrEmpty(post.ImageUrl))
+            {
+                var escapedImg = HttpUtility.HtmlEncode(post.ImageUrl);
+                sb.AppendLine($"""<a href="{escapedUrl}" style="display: block; overflow: hidden; height: 120px;">""");
+                sb.AppendLine($"""<img src="{escapedImg}" alt="{escapedTitle}" style="width: 100%; height: 120px; object-fit: cover; display: block;"/>""");
+                sb.AppendLine("</a>");
+            }
+
+            sb.AppendLine("""<div style="padding: 10px 12px;">""");
+            sb.AppendLine($"""<a href="{escapedUrl}" style="text-decoration: none; color: #1a1a2e; font-weight: 600; font-size: 0.9em; line-height: 1.3; display: block;">{escapedTitle}</a>""");
+            sb.AppendLine("</div>");
+            sb.AppendLine("</div>");
+        }
+
+        sb.AppendLine("</div>"); // flex container
+        sb.AppendLine("</div>"); // related-posts-section
     }
 
     private static void AppendFaqSection(StringBuilder sb, List<CarFact> facts, string todayDate)

@@ -67,6 +67,43 @@ public sealed class CosmosFactKeywordStore : IFactKeywordStore
         return results;
     }
 
+    public async Task<List<FactKeywordRecord>> FindRelatedPostCandidatesAsync(
+        List<string> allKeywords,
+        string excludePostUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (allKeywords.Count == 0)
+            return [];
+
+        // Take top 15 keywords to keep query manageable
+        var topKeywords = allKeywords.Take(15).ToList();
+        var conditions = topKeywords
+            .Select((kw, i) => $"ARRAY_CONTAINS(c.keywords, @kw{i})")
+            .ToList();
+        var whereClause = string.Join(" OR ", conditions);
+
+        var query = $"SELECT * FROM c WHERE ({whereClause}) AND c.postUrl != @excludeUrl";
+
+        var queryDef = new QueryDefinition(query);
+        for (int i = 0; i < topKeywords.Count; i++)
+            queryDef = queryDef.WithParameter($"@kw{i}", topKeywords[i]);
+        queryDef = queryDef.WithParameter("@excludeUrl", excludePostUrl);
+
+        var results = new List<FactKeywordRecord>();
+        using var iterator = _container.GetItemQueryIterator<FactKeywordRecord>(queryDef);
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            results.AddRange(response);
+        }
+
+        _logger.LogInformation("Found {Count} related post candidates from {Keywords} keywords",
+            results.Count, topKeywords.Count);
+
+        return results;
+    }
+
     public async Task IncrementBacklinkCountsAsync(IEnumerable<string> recordIds, CancellationToken cancellationToken = default)
     {
         foreach (var id in recordIds)
