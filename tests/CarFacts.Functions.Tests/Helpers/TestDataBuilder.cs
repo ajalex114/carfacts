@@ -33,7 +33,15 @@ public static class TestDataBuilder
             Keywords = ["automotive history", "car facts", "March 21", "classic cars", "car milestones"],
             GeoSummary = "On March 21 throughout automotive history, five major events shaped the car industry.",
             SocialMediaTeaser = "🚗 Did you know these 5 wild car facts from March 21?",
-            SocialMediaHashtags = ["#CarFacts", "#AutomotiveHistory", "#ThisDayInHistory"]
+            SocialMediaHashtags = ["#CarFacts", "#AutomotiveHistory", "#ThisDayInHistory"],
+            FactKeywords =
+            [
+                new FactKeywordEntry { FactIndex = 0, Keywords = ["ford", "v8", "flathead", "sedan", "american"] },
+                new FactKeywordEntry { FactIndex = 1, Keywords = ["chevrolet", "bel-air", "chrome", "classic"] },
+                new FactKeywordEntry { FactIndex = 2, Keywords = ["bmw", "csl", "racing", "motorsport"] },
+                new FactKeywordEntry { FactIndex = 3, Keywords = ["ferrari", "supercar", "turbo", "mid-engine"] },
+                new FactKeywordEntry { FactIndex = 4, Keywords = ["tesla", "electric", "ev", "suv"] }
+            ]
         };
     }
 

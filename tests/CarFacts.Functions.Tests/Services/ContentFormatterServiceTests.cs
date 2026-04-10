@@ -44,8 +44,9 @@ public class ContentFormatterServiceTests
         var html = _sut.FormatPostHtml(_response, _media, _todayDate);
 
         html.Should().Contain("Quick Navigation");
-        html.Should().Contain("href=\"#fact-1\"");
-        html.Should().Contain("href=\"#fact-5\"");
+        // Meaningful anchors: first fact is Ford Model 48 (1935), last is Tesla Model X (2015)
+        html.Should().Contain("href=\"#ford-model-48-1935\"");
+        html.Should().Contain("href=\"#tesla-model-x-2015\"");
     }
 
     [Fact]
@@ -53,10 +54,12 @@ public class ContentFormatterServiceTests
     {
         var html = _sut.FormatPostHtml(_response, _media, _todayDate);
 
-        for (int i = 1; i <= 5; i++)
-        {
-            html.Should().Contain($"id=\"fact-{i}\"");
-        }
+        // Meaningful anchor IDs derived from car model + year
+        html.Should().Contain("id=\"ford-model-48-1935\"");
+        html.Should().Contain("id=\"chevrolet-bel-air-1957\"");
+        html.Should().Contain("id=\"bmw-3-0-csl-1972\"");
+        html.Should().Contain("id=\"ferrari-f40-1988\"");
+        html.Should().Contain("id=\"tesla-model-x-2015\"");
     }
 
     [Fact]
@@ -132,7 +135,7 @@ public class ContentFormatterServiceTests
 
         html.Should().NotContain("<img ");
         html.Should().NotContain("<figure");
-        html.Should().Contain("id=\"fact-1\""); // facts still present
+        html.Should().Contain("id=\"ford-model-48-1935\""); // facts still present
     }
 
     [Fact]

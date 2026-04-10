@@ -53,6 +53,7 @@ static void RegisterSettings(HostBuilderContext context, IServiceCollection serv
     services.Configure<WordPressSettings>(config.GetSection(WordPressSettings.SectionName));
     services.Configure<ScheduleSettings>(config.GetSection(ScheduleSettings.SectionName));
     services.Configure<SocialMediaSettings>(config.GetSection(SocialMediaSettings.SectionName));
+    services.Configure<CosmosDbSettings>(config.GetSection(CosmosDbSettings.SectionName));
 }
 
 static void RegisterServices(HostBuilderContext context, IServiceCollection services)
@@ -91,6 +92,9 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
     services.AddHttpClient<RedditService>();
     services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<RedditService>());
     services.AddSingleton<SocialMediaPublisher>();
+
+    // Cosmos DB for fact keyword storage
+    RegisterCosmosDb(config, services, isLocal);
 }
 
 static void RegisterTextProvider(
@@ -180,5 +184,41 @@ static void RegisterImageProvider(
                     sp.GetRequiredService<TogetherAIImageGenerationService>()
                 },
                 sp.GetRequiredService<ILogger<FallbackImageGenerationService>>()));
+    }
+}
+
+static void RegisterCosmosDb(
+    Microsoft.Extensions.Configuration.IConfiguration config,
+    IServiceCollection services,
+    bool isLocal)
+{
+    string connectionString;
+    if (isLocal)
+    {
+        connectionString = config["Secrets:CosmosDb-ConnectionString"] ?? "";
+    }
+    else
+    {
+        var vaultUri = config["KeyVault:VaultUri"] ?? "";
+        var client = new Azure.Security.KeyVault.Secrets.SecretClient(
+            new Uri(vaultUri), new Azure.Identity.DefaultAzureCredential());
+        try
+        {
+            connectionString = client.GetSecret("CosmosDb-ConnectionString").Value.Value;
+        }
+        catch
+        {
+            connectionString = "";
+        }
+    }
+
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        services.AddSingleton(new Microsoft.Azure.Cosmos.CosmosClient(connectionString));
+        services.AddSingleton<IFactKeywordStore, CosmosFactKeywordStore>();
+    }
+    else
+    {
+        services.AddSingleton<IFactKeywordStore, NullFactKeywordStore>();
     }
 }

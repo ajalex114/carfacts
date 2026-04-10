@@ -25,4 +25,19 @@ public sealed class SeoMetadata
 
     [JsonPropertyName("social_media_hashtags")]
     public List<string> SocialMediaHashtags { get; set; } = [];
+
+    [JsonPropertyName("fact_keywords")]
+    public List<FactKeywordEntry> FactKeywords { get; set; } = [];
+}
+
+/// <summary>
+/// Per-fact keyword tags for internal backlinking.
+/// </summary>
+public sealed class FactKeywordEntry
+{
+    [JsonPropertyName("fact_index")]
+    public int FactIndex { get; set; }
+
+    [JsonPropertyName("keywords")]
+    public List<string> Keywords { get; set; } = [];
 }

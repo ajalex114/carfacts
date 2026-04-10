@@ -65,6 +65,14 @@ public sealed class ScheduleSettings
     public string CronExpression { get; set; } = "0 0 6 * * *";
 }
 
+public sealed class CosmosDbSettings
+{
+    public const string SectionName = "CosmosDb";
+
+    public string DatabaseName { get; set; } = "carfacts";
+    public string ContainerName { get; set; } = "fact-keywords";
+}
+
 public sealed class SocialMediaSettings
 {
     public const string SectionName = "SocialMedia";

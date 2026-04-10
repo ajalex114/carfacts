@@ -33,3 +33,14 @@ public sealed class SocialPublishInput
     public List<string> Hashtags { get; set; } = [];
     public string Platform { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Input for the fact keywords storage activity.
+/// </summary>
+public sealed class StoreFactKeywordsInput
+{
+    public RawCarFactsContent Content { get; set; } = null!;
+    public SeoMetadata Seo { get; set; } = null!;
+    public string PostUrl { get; set; } = string.Empty;
+    public DateTime PublishDate { get; set; }
+}

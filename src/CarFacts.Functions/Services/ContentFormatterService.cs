@@ -1,5 +1,6 @@
 using System.Text;
 using System.Web;
+using CarFacts.Functions.Helpers;
 using CarFacts.Functions.Models;
 using CarFacts.Functions.Services.Interfaces;
 
@@ -63,7 +64,7 @@ public sealed class ContentFormatterService : IContentFormatterService
 
         foreach (var (fact, idx) in facts.Select((f, i) => (f, i)))
         {
-            sb.AppendLine($"""<li><a href="#fact-{idx + 1}">{HttpUtility.HtmlEncode(fact.CatchyTitle)}</a></li>""");
+            sb.AppendLine($"""<li><a href="#{SlugHelper.GenerateAnchorId(fact)}">{HttpUtility.HtmlEncode(fact.CatchyTitle)}</a></li>""");
         }
 
         sb.AppendLine("</ol>");
@@ -98,7 +99,7 @@ public sealed class ContentFormatterService : IContentFormatterService
         var escapedTitle = HttpUtility.HtmlEncode(fact.CatchyTitle);
         var escapedModel = HttpUtility.HtmlEncode(fact.CarModel);
 
-        sb.AppendLine($"""<div class="car-fact-section" id="fact-{index + 1}" itemscope itemtype="https://schema.org/NewsArticle">""");
+        sb.AppendLine($"""<div class="car-fact-section" id="{SlugHelper.GenerateAnchorId(fact)}" itemscope itemtype="https://schema.org/NewsArticle">""");
         sb.AppendLine($"""<h2 itemprop="headline">🏆 {escapedTitle}</h2>""");
         sb.AppendLine($"""<p class="fact-year" style="color: #666; font-style: italic; margin: 10px 0;"><strong>Year:</strong> {fact.Year} | <strong>Vehicle:</strong> {escapedModel}</p>""");
 
@@ -140,7 +141,7 @@ public sealed class ContentFormatterService : IContentFormatterService
         var escapedTitle = HttpUtility.HtmlEncode(fact.CatchyTitle);
         var escapedModel = HttpUtility.HtmlEncode(fact.CarModel);
 
-        sb.AppendLine($"""<div class="car-fact-section" id="fact-{index + 1}" itemscope itemtype="https://schema.org/NewsArticle">""");
+        sb.AppendLine($"""<div class="car-fact-section" id="{SlugHelper.GenerateAnchorId(fact)}" itemscope itemtype="https://schema.org/NewsArticle">""");
         sb.AppendLine($"""<h2 itemprop="headline">🏆 {escapedTitle}</h2>""");
         sb.AppendLine($"""<p class="fact-year" style="color: #666; font-style: italic; margin: 10px 0;"><strong>Year:</strong> {fact.Year} | <strong>Vehicle:</strong> {escapedModel}</p>""");
 

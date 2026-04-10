@@ -269,4 +269,74 @@ public class ActivityTests
     }
 
     #endregion
+
+    #region StoreFactKeywordsActivity
+
+    [Fact]
+    public async Task StoreFactKeywords_CallsStoreWithCorrectRecords()
+    {
+        var content = TestDataBuilder.CreateValidRawContent();
+        var seo = TestDataBuilder.CreateValidSeoMetadata();
+        var store = new Mock<IFactKeywordStore>();
+
+        var activity = new StoreFactKeywordsActivity(
+            store.Object,
+            Mock.Of<ILogger<StoreFactKeywordsActivity>>());
+
+        var input = new StoreFactKeywordsInput
+        {
+            Content = content,
+            Seo = seo,
+            PostUrl = "https://example.com/test-post/",
+            PublishDate = new DateTime(2026, 3, 21, 6, 0, 0, DateTimeKind.Utc)
+        };
+
+        var result = await activity.Run(input);
+
+        result.Should().BeTrue();
+        store.Verify(s => s.UpsertFactsAsync(
+            It.Is<IEnumerable<FactKeywordRecord>>(r => r.Count() == 5),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task StoreFactKeywords_GeneratesCorrectAnchorIds()
+    {
+        var content = TestDataBuilder.CreateValidRawContent();
+        var seo = TestDataBuilder.CreateValidSeoMetadata();
+        IEnumerable<FactKeywordRecord>? storedRecords = null;
+
+        var store = new Mock<IFactKeywordStore>();
+        store.Setup(s => s.UpsertFactsAsync(It.IsAny<IEnumerable<FactKeywordRecord>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<FactKeywordRecord>, CancellationToken>((r, _) => storedRecords = r.ToList())
+            .Returns(Task.CompletedTask);
+
+        var activity = new StoreFactKeywordsActivity(
+            store.Object,
+            Mock.Of<ILogger<StoreFactKeywordsActivity>>());
+
+        var input = new StoreFactKeywordsInput
+        {
+            Content = content,
+            Seo = seo,
+            PostUrl = "https://example.com/test-post/",
+            PublishDate = new DateTime(2026, 3, 21, 6, 0, 0, DateTimeKind.Utc)
+        };
+
+        await activity.Run(input);
+
+        storedRecords.Should().NotBeNull();
+        var records = storedRecords!.ToList();
+
+        // Ford Model 48, 1935 → "ford-model-48-1935"
+        records[0].AnchorId.Should().Be("ford-model-48-1935");
+        records[0].Id.Should().Be("2026-03-21_ford-model-48-1935");
+        records[0].FactUrl.Should().Be("https://example.com/test-post/#ford-model-48-1935");
+        records[0].Keywords.Should().Contain("ford");
+
+        // BMW 3.0 CSL, 1972 → "bmw-3-0-csl-1972"
+        records[2].AnchorId.Should().Be("bmw-3-0-csl-1972");
+    }
+
+    #endregion
 }

@@ -123,24 +123,34 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("Post published: {PostUrl}", publishResult.PostUrl);
 
-        // Step 7: Social media (best-effort, fire-and-forget style)
-        try
-        {
-            await context.CallActivityAsync<bool>(
-                nameof(PublishSocialMediaActivity),
-                new SocialPublishInput
-                {
-                    Teaser = seo.SocialMediaTeaser,
-                    PostUrl = publishResult.PostUrl,
-                    Title = seo.MainTitle,
-                    Hashtags = seo.SocialMediaHashtags
-                },
-                new TaskOptions(SocialRetryPolicy));
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning("Social media publishing failed (non-blocking): {Message}", ex.Message);
-        }
+        // Step 7: Social media + keyword storage (best-effort, parallel)
+        var socialTask = context.CallActivityAsync<bool>(
+            nameof(PublishSocialMediaActivity),
+            new SocialPublishInput
+            {
+                Teaser = seo.SocialMediaTeaser,
+                PostUrl = publishResult.PostUrl,
+                Title = seo.MainTitle,
+                Hashtags = seo.SocialMediaHashtags
+            },
+            new TaskOptions(SocialRetryPolicy));
+
+        var keywordTask = context.CallActivityAsync<bool>(
+            nameof(StoreFactKeywordsActivity),
+            new StoreFactKeywordsInput
+            {
+                Content = content,
+                Seo = seo,
+                PostUrl = publishResult.PostUrl,
+                PublishDate = context.CurrentUtcDateTime
+            },
+            new TaskOptions(WordPressRetryPolicy));
+
+        try { await socialTask; }
+        catch (Exception ex) { logger.LogWarning("Social media publishing failed (non-blocking): {Message}", ex.Message); }
+
+        try { await keywordTask; }
+        catch (Exception ex) { logger.LogWarning("Keyword storage failed (non-blocking): {Message}", ex.Message); }
 
         logger.LogInformation("CarFacts pipeline complete for {Date}: {PostUrl}", todayDate, publishResult.PostUrl);
         return publishResult.PostUrl;
