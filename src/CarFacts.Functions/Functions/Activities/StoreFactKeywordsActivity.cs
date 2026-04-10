@@ -50,6 +50,14 @@ public sealed class StoreFactKeywordsActivity
         await _store.UpsertFactsAsync(records);
         _logger.LogInformation("Stored {Count} fact keyword records", records.Count);
 
+        // Increment backlink counts for all facts that were linked to in this post
+        if (input.Backlinks.Count > 0)
+        {
+            var linkedRecordIds = input.Backlinks.Select(b => b.TargetRecordId).ToList();
+            _logger.LogInformation("Incrementing backlink counts for {Count} linked facts", linkedRecordIds.Count);
+            await _store.IncrementBacklinkCountsAsync(linkedRecordIds);
+        }
+
         return true;
     }
 }

@@ -18,4 +18,17 @@ public sealed class NullFactKeywordStore : IFactKeywordStore
         _logger.LogWarning("Cosmos DB not configured — skipping keyword storage ({Count} records)", records.Count());
         return Task.CompletedTask;
     }
+
+    public Task<List<FactKeywordRecord>> FindRelatedFactsAsync(
+        List<string> keywords, string excludePostUrl, int maxResults = 5, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — skipping backlink lookup");
+        return Task.FromResult(new List<FactKeywordRecord>());
+    }
+
+    public Task IncrementBacklinkCountsAsync(IEnumerable<string> recordIds, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — skipping backlink count increment");
+        return Task.CompletedTask;
+    }
 }

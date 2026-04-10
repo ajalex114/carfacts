@@ -34,7 +34,7 @@ public sealed class FormatAndPublishActivity
         _logger.LogInformation("Formatting and publishing post for {Date}", input.TodayDate);
 
         var htmlContent = _formatterService.FormatPostHtml(
-            input.Content, input.Seo, input.Media, input.TodayDate);
+            input.Content, input.Seo, input.Media, input.TodayDate, input.Backlinks);
 
         var featuredMediaId = input.Media.FirstOrDefault()?.MediaId ?? 0;
         var keywords = string.Join(", ", input.Seo.Keywords);

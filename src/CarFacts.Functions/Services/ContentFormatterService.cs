@@ -21,7 +21,7 @@ public sealed class ContentFormatterService : IContentFormatterService
         return sb.ToString();
     }
 
-    public string FormatPostHtml(RawCarFactsContent content, SeoMetadata seo, List<UploadedMedia> media, string todayDate)
+    public string FormatPostHtml(RawCarFactsContent content, SeoMetadata seo, List<UploadedMedia> media, string todayDate, List<BacklinkSuggestion>? backlinks = null)
     {
         // Bridge: compose a CarFactsResponse from the split models
         var response = new CarFactsResponse
@@ -34,7 +34,16 @@ public sealed class ContentFormatterService : IContentFormatterService
             SocialMediaHashtags = seo.SocialMediaHashtags,
             Facts = content.Facts
         };
-        return FormatPostHtml(response, media, todayDate);
+
+        var sb = new StringBuilder(8192);
+
+        AppendGeoHeader(sb, response, todayDate);
+        AppendTableOfContents(sb, response.Facts);
+        AppendFactSectionsWithBacklinks(sb, response.Facts, media, backlinks ?? []);
+        AppendConclusion(sb, response.Facts, todayDate);
+        AppendFaqSection(sb, response.Facts, todayDate);
+
+        return sb.ToString();
     }
 
     private static void AppendGeoHeader(StringBuilder sb, CarFactsResponse response, string todayDate)
@@ -132,11 +141,21 @@ public sealed class ContentFormatterService : IContentFormatterService
         foreach (var (fact, idx) in facts.Select((f, i) => (f, i)))
         {
             var image = media.FirstOrDefault(m => m.FactIndex == idx);
-            AppendSingleFact(sb, fact, image, idx);
+            AppendSingleFact(sb, fact, image, idx, null);
         }
     }
 
-    private static void AppendSingleFact(StringBuilder sb, CarFact fact, UploadedMedia? image, int index)
+    private static void AppendFactSectionsWithBacklinks(StringBuilder sb, List<CarFact> facts, List<UploadedMedia> media, List<BacklinkSuggestion> backlinks)
+    {
+        foreach (var (fact, idx) in facts.Select((f, i) => (f, i)))
+        {
+            var image = media.FirstOrDefault(m => m.FactIndex == idx);
+            var backlink = backlinks.FirstOrDefault(b => b.FactIndex == idx);
+            AppendSingleFact(sb, fact, image, idx, backlink);
+        }
+    }
+
+    private static void AppendSingleFact(StringBuilder sb, CarFact fact, UploadedMedia? image, int index, BacklinkSuggestion? backlink)
     {
         var escapedTitle = HttpUtility.HtmlEncode(fact.CatchyTitle);
         var escapedModel = HttpUtility.HtmlEncode(fact.CarModel);
@@ -154,7 +173,12 @@ public sealed class ContentFormatterService : IContentFormatterService
 
         sb.AppendLine("""<div class="impact-section" style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">""");
         sb.AppendLine("<p><strong>💡 The Big Deal:</strong> <em>This one changed the game — it reshaped how we think about cars and set the stage for everything that came after.</em></p>");
-        sb.AppendLine("</div>");        sb.AppendLine("</div>");
+        sb.AppendLine("</div>");
+
+        if (backlink is not null)
+            AppendBacklink(sb, backlink);
+
+        sb.AppendLine("</div>");
         sb.AppendLine();
     }
 
@@ -168,6 +192,17 @@ public sealed class ContentFormatterService : IContentFormatterService
         sb.AppendLine("""<meta itemprop="height" content="1024"/>""");
         sb.AppendLine($"""<figcaption itemprop="caption">{HttpUtility.HtmlEncode(fact.CarModel)} ({fact.Year})</figcaption>""");
         sb.AppendLine("</figure>");
+    }
+
+    private static void AppendBacklink(StringBuilder sb, BacklinkSuggestion backlink)
+    {
+        var escapedModel = HttpUtility.HtmlEncode(backlink.TargetCarModel);
+        var escapedTitle = HttpUtility.HtmlEncode(backlink.TargetTitle);
+        var escapedUrl = HttpUtility.HtmlEncode(backlink.TargetFactUrl);
+
+        sb.AppendLine("""<div class="related-read" style="background: #f0f7ff; padding: 12px 16px; border-left: 3px solid #4a90d9; margin: 12px 0; font-size: 0.95em;">""");
+        sb.AppendLine($"""<p style="margin: 0;">🔗 Speaking of which — the <a href="{escapedUrl}" title="{escapedTitle}">{escapedModel} ({backlink.TargetYear})</a> has a story worth knowing too.</p>""");
+        sb.AppendLine("</div>");
     }
 
     private static void AppendConclusion(StringBuilder sb, List<CarFact> facts, string todayDate)

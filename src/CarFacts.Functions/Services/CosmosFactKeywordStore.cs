@@ -29,4 +29,60 @@ public sealed class CosmosFactKeywordStore : IFactKeywordStore
             _logger.LogInformation("Stored keywords for fact: {Id} ({Count} keywords)", record.Id, record.Keywords.Count);
         }
     }
+
+    public async Task<List<FactKeywordRecord>> FindRelatedFactsAsync(
+        List<string> keywords,
+        string excludePostUrl,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default)
+    {
+        if (keywords.Count == 0)
+            return [];
+
+        // Build ARRAY_CONTAINS OR chain for keyword matching
+        var conditions = keywords
+            .Select((kw, i) => $"ARRAY_CONTAINS(c.keywords, @kw{i})")
+            .ToList();
+        var whereClause = string.Join(" OR ", conditions);
+
+        var query = $"SELECT * FROM c WHERE ({whereClause}) AND c.postUrl != @excludeUrl";
+
+        var queryDef = new QueryDefinition(query);
+        for (int i = 0; i < keywords.Count; i++)
+            queryDef = queryDef.WithParameter($"@kw{i}", keywords[i]);
+        queryDef = queryDef.WithParameter("@excludeUrl", excludePostUrl);
+
+        var results = new List<FactKeywordRecord>();
+        using var iterator = _container.GetItemQueryIterator<FactKeywordRecord>(queryDef);
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            results.AddRange(response);
+        }
+
+        _logger.LogInformation("Found {Count} related facts for keywords [{Keywords}]",
+            results.Count, string.Join(", ", keywords.Take(5)));
+
+        return results;
+    }
+
+    public async Task IncrementBacklinkCountsAsync(IEnumerable<string> recordIds, CancellationToken cancellationToken = default)
+    {
+        foreach (var id in recordIds)
+        {
+            try
+            {
+                var response = await _container.ReadItemAsync<FactKeywordRecord>(id, new PartitionKey(id), cancellationToken: cancellationToken);
+                var record = response.Resource;
+                record.BacklinkCount++;
+                await _container.ReplaceItemAsync(record, id, new PartitionKey(id), cancellationToken: cancellationToken);
+                _logger.LogInformation("Incremented backlink count for {Id} to {Count}", id, record.BacklinkCount);
+            }
+            catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning("Record {Id} not found for backlink increment — skipping", id);
+            }
+        }
+    }
 }

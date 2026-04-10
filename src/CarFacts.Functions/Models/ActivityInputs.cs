@@ -20,6 +20,7 @@ public sealed class PublishInput
     public List<UploadedMedia> Media { get; set; } = [];
     public string TodayDate { get; set; } = string.Empty;
     public int DraftPostId { get; set; }
+    public List<BacklinkSuggestion> Backlinks { get; set; } = [];
 }
 
 /// <summary>
@@ -43,4 +44,14 @@ public sealed class StoreFactKeywordsInput
     public SeoMetadata Seo { get; set; } = null!;
     public string PostUrl { get; set; } = string.Empty;
     public DateTime PublishDate { get; set; }
+    public List<BacklinkSuggestion> Backlinks { get; set; } = [];
+}
+
+/// <summary>
+/// Input for the find-backlinks activity.
+/// </summary>
+public sealed class FindBacklinksInput
+{
+    public List<FactKeywordEntry> FactKeywords { get; set; } = [];
+    public string CurrentPostUrl { get; set; } = string.Empty;
 }

@@ -62,6 +62,25 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("SEO: {Title} | {ImageCount} images generated", seo.MainTitle, images.Count);
 
+        // Step 3.5: Find related backlinks from Cosmos DB based on fact keywords
+        var backlinks = new List<BacklinkSuggestion>();
+        try
+        {
+            backlinks = await context.CallActivityAsync<List<BacklinkSuggestion>>(
+                nameof(FindBacklinksActivity),
+                new FindBacklinksInput
+                {
+                    FactKeywords = seo.FactKeywords,
+                    CurrentPostUrl = "" // Not published yet — no URL to exclude
+                },
+                new TaskOptions(WordPressRetryPolicy));
+            logger.LogInformation("Found {Count} backlink suggestions", backlinks.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("Backlink lookup failed (non-blocking): {Message}", ex.Message);
+        }
+
         WordPressPostResult publishResult;
 
         if (images.Count > 0)
@@ -99,7 +118,8 @@ public static class CarFactsOrchestrator
                     Seo = seo,
                     Media = media,
                     TodayDate = todayDate,
-                    DraftPostId = draft.PostId
+                    DraftPostId = draft.PostId,
+                    Backlinks = backlinks
                 },
                 new TaskOptions(WordPressRetryPolicy));
         }
@@ -116,7 +136,8 @@ public static class CarFactsOrchestrator
                     Seo = seo,
                     Media = [],
                     TodayDate = todayDate,
-                    DraftPostId = 0
+                    DraftPostId = 0,
+                    Backlinks = backlinks
                 },
                 new TaskOptions(WordPressRetryPolicy));
         }
@@ -142,7 +163,8 @@ public static class CarFactsOrchestrator
                 Content = content,
                 Seo = seo,
                 PostUrl = publishResult.PostUrl,
-                PublishDate = context.CurrentUtcDateTime
+                PublishDate = context.CurrentUtcDateTime,
+                Backlinks = backlinks
             },
             new TaskOptions(WordPressRetryPolicy));
 
