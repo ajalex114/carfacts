@@ -26,6 +26,13 @@ Generate exactly 5 unique and fascinating automotive facts that happened on {{DA
 - Generate SEO meta description (150-160 characters)
 - Generate 5-7 relevant SEO keywords
 - Generate a GEO summary (2-3 sentences optimized for AI search engines like ChatGPT, Perplexity, Claude)
+- Generate a social media teaser (1-2 punchy sentences, max 200 characters). Write it like a real person casually sharing something cool they just learned — not a headline or ad. It should tease ONE surprising detail and make people want to click. Example tone: "TIL a Volvo patent saved millions of lives… and they gave it away for free. Wild story 👇"
+- Generate 6-8 social media hashtags optimized for engagement on Twitter/X, Facebook, and Reddit. These are NOT the same as SEO keywords — they should be:
+  • Trending/community hashtags that car enthusiasts actually use (e.g., #CarHistory, #ClassicCars, #OnThisDay, #TIL, #Petrolhead)
+  • A mix of broad reach tags (#Cars, #Automotive) and niche tags specific to the facts (#F1, #JDM, #EVs, #Rally)
+  • Short, punchy, no spaces — CamelCase style (e.g., #AutomotiveHistory not #automotive_history)
+  • Include at least one "today" or "history" tag (e.g., #OnThisDay, #TodayInHistory, #TIL)
+  • Do NOT just repeat the SEO keywords with a # prefix — think about what people actually follow and search on social media
 
 Return ONLY valid JSON with this exact structure (no markdown, no code blocks, just pure JSON):
 {
@@ -33,6 +40,8 @@ Return ONLY valid JSON with this exact structure (no markdown, no code blocks, j
   "meta_description": "SEO-optimized meta description 150-160 characters",
   "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
   "geo_summary": "2-3 sentence summary optimized for AI search engines, focusing on key facts and historical significance",
+  "social_media_teaser": "Brief, human-sounding teaser that makes people want to click — max 200 chars",
+  "social_media_hashtags": ["#CarHistory", "#OnThisDay", "#ClassicCars", "#TIL", "#Automotive", "#Petrolhead"],
   "facts": [
     {
       "year": 1955,

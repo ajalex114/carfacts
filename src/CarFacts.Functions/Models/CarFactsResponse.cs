@@ -16,6 +16,12 @@ public sealed class CarFactsResponse
     [JsonPropertyName("geo_summary")]
     public string GeoSummary { get; set; } = string.Empty;
 
+    [JsonPropertyName("social_media_teaser")]
+    public string SocialMediaTeaser { get; set; } = string.Empty;
+
+    [JsonPropertyName("social_media_hashtags")]
+    public List<string> SocialMediaHashtags { get; set; } = [];
+
     [JsonPropertyName("facts")]
     public List<CarFact> Facts { get; set; } = [];
 }

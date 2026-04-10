@@ -52,6 +52,7 @@ static void RegisterSettings(HostBuilderContext context, IServiceCollection serv
     services.Configure<TogetherAISettings>(config.GetSection(TogetherAISettings.SectionName));
     services.Configure<WordPressSettings>(config.GetSection(WordPressSettings.SectionName));
     services.Configure<ScheduleSettings>(config.GetSection(ScheduleSettings.SectionName));
+    services.Configure<SocialMediaSettings>(config.GetSection(SocialMediaSettings.SectionName));
 }
 
 static void RegisterServices(HostBuilderContext context, IServiceCollection services)
@@ -80,6 +81,15 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
     // Other services
     services.AddSingleton<IContentFormatterService, ContentFormatterService>();
     services.AddHttpClient<IWordPressService, WordPressService>();
+
+    // Social media services
+    services.AddHttpClient<TwitterService>();
+    services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<TwitterService>());
+    services.AddHttpClient<FacebookService>();
+    services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<FacebookService>());
+    services.AddHttpClient<RedditService>();
+    services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<RedditService>());
+    services.AddSingleton<SocialMediaPublisher>();
 }
 
 static void RegisterTextProvider(

@@ -64,3 +64,25 @@ public sealed class ScheduleSettings
 
     public string CronExpression { get; set; } = "0 0 6 * * *";
 }
+
+public sealed class SocialMediaSettings
+{
+    public const string SectionName = "SocialMedia";
+
+    // Per-platform toggles
+    public bool TwitterEnabled { get; set; }
+    public bool FacebookEnabled { get; set; }
+    public bool RedditEnabled { get; set; }
+
+    // Twitter / X
+    public string TwitterConsumerKey { get; set; } = string.Empty;
+    public string TwitterConsumerSecret { get; set; } = string.Empty;
+
+    // Facebook
+    public List<string> FacebookPageIds { get; set; } = [];
+
+    // Reddit
+    public string RedditAppId { get; set; } = string.Empty;
+    public string RedditUserAgent { get; set; } = "CarFacts/1.0";
+    public List<string> RedditSubreddits { get; set; } = [];
+}

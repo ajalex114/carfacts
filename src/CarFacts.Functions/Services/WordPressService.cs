@@ -71,6 +71,48 @@ public sealed class WordPressService : IWordPressService
         return await SendCreatePostRequestAsync(authHeader, postBody, cancellationToken);
     }
 
+    public async Task AssociateMediaWithPostAsync(
+        List<UploadedMedia> media,
+        int postId,
+        CancellationToken cancellationToken = default)
+    {
+        if (media.Count == 0 || postId <= 0) return;
+
+        _logger.LogInformation("Associating {Count} media items with post {PostId}", media.Count, postId);
+
+        var authHeader = await BuildAuthHeaderAsync(cancellationToken);
+        var siteId = GetSiteId();
+
+        foreach (var item in media)
+        {
+            try
+            {
+                var url = $"{ApiBase}/{siteId}/media/{item.MediaId}";
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Authorization = authHeader;
+
+                var body = JsonSerializer.Serialize(new { parent_id = postId });
+                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Media {MediaId} associated with post {PostId}", item.MediaId, postId);
+                }
+                else
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogWarning("Failed to associate media {MediaId} with post {PostId}: {Status} {Body}",
+                        item.MediaId, postId, response.StatusCode, errorBody);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error associating media {MediaId} with post {PostId}", item.MediaId, postId);
+            }
+        }
+    }
+
     private async Task<UploadedMedia> UploadSingleImageAsync(
         AuthenticationHeaderValue authHeader,
         GeneratedImage image,

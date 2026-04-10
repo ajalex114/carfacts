@@ -9,4 +9,12 @@ public static class SecretNames
     public const string StabilityAIApiKey = "StabilityAI-ApiKey";
     public const string TogetherAIApiKey = "TogetherAI-ApiKey";
     public const string WordPressOAuthToken = "WordPress-OAuthToken";
+
+    // Social media secrets
+    public const string TwitterAccessToken = "Twitter-AccessToken";
+    public const string TwitterAccessTokenSecret = "Twitter-AccessTokenSecret";
+    public const string FacebookPageAccessToken = "Facebook-PageAccessToken";
+    public const string RedditAppSecret = "Reddit-AppSecret";
+    public const string RedditUsername = "Reddit-Username";
+    public const string RedditPassword = "Reddit-Password";
 }

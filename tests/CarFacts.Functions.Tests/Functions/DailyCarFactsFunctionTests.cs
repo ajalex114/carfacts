@@ -1,6 +1,7 @@
 using CarFacts.Functions.Configuration;
 using CarFacts.Functions.Functions;
 using CarFacts.Functions.Models;
+using CarFacts.Functions.Services;
 using CarFacts.Functions.Services.Interfaces;
 using CarFacts.Functions.Tests.Helpers;
 using FluentAssertions;
@@ -35,11 +36,16 @@ public class DailyCarFactsFunctionTests
             SkipImages = false
         });
 
+        var socialPublisher = new SocialMediaPublisher(
+            Enumerable.Empty<ISocialMediaService>(),
+            new Mock<ILogger<SocialMediaPublisher>>().Object);
+
         _sut = new DailyCarFactsFunction(
             _contentGen.Object,
             _imageGen.Object,
             _wordPress.Object,
             _formatter.Object,
+            socialPublisher,
             wpSettings,
             _logger.Object);
 

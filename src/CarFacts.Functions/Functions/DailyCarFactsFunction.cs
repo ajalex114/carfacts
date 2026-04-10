@@ -1,4 +1,5 @@
 using CarFacts.Functions.Configuration;
+using CarFacts.Functions.Services;
 using CarFacts.Functions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ public sealed class DailyCarFactsFunction
     private readonly IImageGenerationService _imageGenerator;
     private readonly IWordPressService _wordPressService;
     private readonly IContentFormatterService _contentFormatter;
+    private readonly SocialMediaPublisher _socialMediaPublisher;
     private readonly WordPressSettings _wpSettings;
     private readonly ILogger<DailyCarFactsFunction> _logger;
 
@@ -20,6 +22,7 @@ public sealed class DailyCarFactsFunction
         IImageGenerationService imageGenerator,
         IWordPressService wordPressService,
         IContentFormatterService contentFormatter,
+        SocialMediaPublisher socialMediaPublisher,
         IOptions<WordPressSettings> wpSettings,
         ILogger<DailyCarFactsFunction> logger)
     {
@@ -27,6 +30,7 @@ public sealed class DailyCarFactsFunction
         _imageGenerator = imageGenerator;
         _wordPressService = wordPressService;
         _contentFormatter = contentFormatter;
+        _socialMediaPublisher = socialMediaPublisher;
         _wpSettings = wpSettings.Value;
         _logger = logger;
     }
@@ -66,7 +70,8 @@ public sealed class DailyCarFactsFunction
                 var media = await _wordPressService.UploadImagesAsync(images, response.Facts, cancellationToken);
                 var htmlContent = _contentFormatter.FormatPostHtml(response, media, todayDate);
                 var featuredMediaId = media.FirstOrDefault()?.MediaId ?? 0;
-                await CreatePostAsync(response, htmlContent, featuredMediaId, cancellationToken);
+                var postResult = await CreatePostAsync(response, htmlContent, featuredMediaId, cancellationToken);
+                await _wordPressService.AssociateMediaWithPostAsync(media, postResult.PostId, cancellationToken);
             }
         }
     }
@@ -81,7 +86,7 @@ public sealed class DailyCarFactsFunction
         await CreatePostAsync(response, htmlContent, 0, cancellationToken);
     }
 
-    private async Task CreatePostAsync(
+    private async Task<Models.WordPressPostResult> CreatePostAsync(
         Models.CarFactsResponse response,
         string htmlContent,
         int featuredMediaId,
@@ -97,6 +102,12 @@ public sealed class DailyCarFactsFunction
             response.MetaDescription, cancellationToken);
 
         _logger.LogInformation("✅ Published: {Title} → {Url} (ID: {PostId})", result.Title, result.PostUrl, result.PostId);
+
+        // Share to social media
+        await _socialMediaPublisher.PublishAsync(
+            response.SocialMediaTeaser, result.PostUrl, response.MainTitle, response.SocialMediaHashtags, cancellationToken);
+
+        return result;
     }
 
     private static void SaveHtmlDebugFile(string htmlContent)
