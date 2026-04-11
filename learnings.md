@@ -237,3 +237,122 @@ for (int attempt = 0; attempt <= maxRetries; attempt++)
     return await response.Content.ReadAsStringAsync(ct);
 }
 ```
+
+---
+
+## 7. SEO Optimizations
+
+### 7.1 Title Tag Strategy: Brand + Model Anchor with Multi-Fact Teaser
+
+**Problem:** Early titles were generic clickbait like "The Electric Sports Car That Changed Everything for EVs" — vague, no searchable brand/model keywords, no signal that the post contains multiple facts.
+
+**Fix:** Updated the SEO prompt to anchor titles on the **first fact's brand + model** and append a multi-fact teaser:
+
+- ✅ `Ford Model A: The Birth of the Affordable Car (And 4 More You Should Know)`
+- ✅ `How the Tesla Roadster Changed EVs — Plus 4 More Automotive Stories`
+- ❌ `The Electric Sports Car That Changed Everything for EVs` (old — no brand, no teaser)
+
+**Rules baked into prompt:**
+- Always include brand + model from the first fact (e.g., "Volvo 3-Point Seatbelt")
+- Keep between 50–60 characters (hard max 70)
+- Teaser must signal multiple facts ("+ 4 more facts", "and four more milestones")
+- Confident tone, not try-hard clickbait — let the fact speak for itself
+- Never use "You Won't Believe" or "Shocking Truth"
+
+**Lesson:** Title tags should contain the exact keywords a user would search for (brand + model + event). Vague curiosity-gap titles get clicks but don't rank in search.
+
+**File:** `src/CarFacts.Functions/Prompts/SeoUserPrompt.txt`
+
+---
+
+### 7.2 Meaningful Anchor IDs for Deep Linking
+
+**Problem:** Fact headings used generic anchors like `#fact-1`, `#fact-2`. These are:
+- Not descriptive for users sharing links
+- Not keyword-rich for search engines
+- Not unique across posts (collision risk in Cosmos DB)
+
+**Fix:** Generate SEO-friendly slugs from the car model + year: `#ford-model-48-1935`, `#bmw-3-0-csl-1972`.
+
+**Implementation:** `SlugHelper.GenerateAnchorId(fact)` normalizes the model name (lowercase, hyphens, strip special chars) and appends the year. Used in both HTML rendering and Cosmos DB record IDs.
+
+**Lesson:** Every anchor ID should be a keyword-rich slug that could stand alone as a URL fragment. Generic numeric IDs are a wasted SEO opportunity.
+
+**File:** `src/CarFacts.Functions/Helpers/SlugHelper.cs`
+
+---
+
+### 7.3 Internal Backlinking via Cosmos DB Keywords
+
+**Problem:** Posts were isolated islands — no internal links between them. Google values internal linking for:
+- Helping crawlers discover and index more pages
+- Distributing page authority (link juice) across the site
+- Reducing bounce rate by guiding users to related content
+
+**Fix (two-part system):**
+
+**Part A — Per-fact inline backlinks:**
+- After SEO generation, each fact's keywords are searched against Cosmos DB
+- A related fact from a different post is selected (weighted random, favoring lower `backlinkCount`)
+- Rendered as a subtle "Speaking of which" callout in each fact section
+- Style: light blue background, left border accent — intriguing but not attention-seeking
+
+**Part B — "You Might Also Find These Interesting" section:**
+- Replaced the generic FAQ section at the bottom
+- Shows 4 related post cards in a 2×2 grid with thumbnail images
+- Posts selected from Cosmos DB, distinct by `postUrl`, weighted by lower backlink count
+- Cards: 120px thumbnail, rounded corners, subtle border — compact and clean
+
+**Backlink count tracking:** Every time a post/fact is linked to, its `backlinkCount` is incremented in Cosmos DB. This ensures link distribution is fair — rarely-linked content gets boosted over time.
+
+**Pipeline flow:**
+1. Generate content → 2. Generate SEO + images → **3. Find backlinks (Cosmos DB keyword search)** → 4. Draft → 5. Upload images → 6. Format HTML with backlinks → 7. Publish → **8. Store keywords + increment backlink counts**
+
+**Lesson:** Internal linking is one of the highest-ROI SEO strategies for content sites. Automating it via keyword matching + weighted selection ensures consistent cross-linking without manual effort.
+
+**Key files:**
+- `src/CarFacts.Functions/Functions/Activities/FindBacklinksActivity.cs`
+- `src/CarFacts.Functions/Services/CosmosFactKeywordStore.cs`
+- `src/CarFacts.Functions/Services/ContentFormatterService.cs`
+
+---
+
+### 7.4 Per-Fact Keyword Tagging for Cross-Referencing
+
+**Problem:** No machine-readable metadata existed per fact to enable automated linking, search, or categorization.
+
+**Fix:** The SEO prompt generates 5–8 lowercase keyword tags per fact (brand, model, category, technology, era). These are stored in Cosmos DB alongside the fact's deep link URL.
+
+**Cosmos DB record structure:**
+```json
+{
+  "id": "2026-04-10_ford-model-a-v8-1925",
+  "postUrl": "https://carfactsdaily.com/2026/04/10/...",
+  "factUrl": "https://carfactsdaily.com/2026/04/10/...#ford-model-a-v8-1925",
+  "keywords": ["ford", "model-a", "v8", "engine", "american", "sedan"],
+  "postTitle": "Ford Model A: The Birth of the Affordable Car...",
+  "imageUrl": "https://carfactsdaily.com/wp-content/.../car-fact-1925-0.png",
+  "backlinkCount": 2
+}
+```
+
+**Keyword search:** Uses `ARRAY_CONTAINS` queries in Cosmos DB to find facts sharing keywords with the current post's facts.
+
+**Lesson:** Storing per-content-unit keyword metadata enables powerful automated features (backlinks, related content, search). Design the schema upfront to support future use cases — we later added `postTitle`, `imageUrl`, and `backlinkCount` to the same records.
+
+**File:** `src/CarFacts.Functions/Models/FactKeywordRecord.cs`
+
+---
+
+### 7.5 GEO Optimization for AI Search Engines
+
+**Problem:** AI search engines (ChatGPT, Perplexity, Claude) parse content differently than Google. Standard SEO meta tags may not be sufficient.
+
+**Fix:** Each post includes:
+- A `<!-- GEO Summary -->` HTML comment with a 2–3 sentence summary optimized for AI retrieval
+- Schema.org microdata (`itemprop`, `itemscope`) for structured data (Article, NewsArticle, ImageObject)
+- Note: `<script>` tags (JSON-LD) are stripped by WordPress.com, so microdata is used instead
+
+**Lesson:** WordPress.com free tier strips `<script>` tags, making JSON-LD structured data impossible. Use microdata (`itemprop`/`itemscope`) as a fallback. GEO (Generative Engine Optimization) is an emerging field — adding AI-friendly summaries is low-effort and future-proofs content.
+
+**File:** `src/CarFacts.Functions/Services/ContentFormatterService.cs` (AppendGeoHeader method)
