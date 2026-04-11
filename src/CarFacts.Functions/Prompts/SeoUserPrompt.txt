@@ -6,11 +6,18 @@ Here is the full article content:
 Based on ALL 5 facts above, generate:
 
 🎯 SEO & TITLE REQUIREMENTS:
-- The main page title MUST hint at the single most fascinating or surprising fact from the 5 facts — tease it enough to spark curiosity without giving it away (e.g., "The Japanese Car That Refused to Die" or "When a Sedan Beat Every Supercar on the Track")
-- Keep it 60-80 characters, catchy and curiosity-driven, but grounded in the actual content — avoid generic clickbait that feels hollow or try-hard
-- Do NOT use overused clickbait phrases like "You Won't Believe" or "Shocking Truth" — instead, let the inherent surprise of the fact itself do the work
-- Use natural intrigue: lean on specifics, unexpected details, and the "wait, really?" factor rather than hype words
-- Make titles feel like something a knowledgeable friend would excitedly tell you, not a tabloid headline
+- The title MUST be anchored on the FIRST fact in the article — use its brand + model + key event/invention as the primary keyword phrase
+- Follow one of these formats:
+  • "<Brand Model Event> — And 4 More Fascinating Car Facts"
+  • "How the <Brand Model> Changed <Outcome> — Plus 4 More Automotive Stories"
+  • "<Brand Model>: <Key Event> (And 4 More You Should Know)"
+- Always include the specific brand and model from the first fact (e.g., "Volvo 3-Point Seatbelt", "Tesla Roadster", "Toyota Prius")
+- Keep the title between 50-60 characters when possible (hard max 70)
+- The teaser portion must clearly indicate the article contains multiple facts (e.g., "+ 4 more facts", "and four more milestones", "plus 4 more stories")
+- Maintain a confident, intriguing tone — like a knowledgeable friend sharing something cool, NOT a tabloid headline
+- Do NOT use overused clickbait phrases like "You Won't Believe" or "Shocking Truth"
+- Do NOT use vague titles that lack searchable keywords — every title must contain a real brand/model name
+- The title should hook without trying too hard — let the inherent surprise of the fact do the work
 - Generate SEO meta description (150-160 characters)
 - Generate 5-7 relevant SEO keywords
 - Generate a GEO summary (2-3 sentences optimized for AI search engines like ChatGPT, Perplexity, Claude)
@@ -31,7 +38,7 @@ Based on ALL 5 facts above, generate:
 
 Return ONLY valid JSON with this exact structure (no markdown, no code blocks, just pure JSON):
 {
-  "main_title": "Title highlighting the most jaw-dropping fact — gives a real taste of the content",
+  "main_title": "The Ford Flathead V8 Revolutionized Engines — And 4 More Car Facts",
   "meta_description": "SEO-optimized meta description 150-160 characters",
   "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
   "geo_summary": "2-3 sentence summary optimized for AI search engines, focusing on key facts and historical significance",
