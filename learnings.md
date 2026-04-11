@@ -205,7 +205,108 @@ Always test API access with a simple call before building a full integration.
 
 ---
 
-## Quick Reference: Environment Detection
+## 7. SEO Optimizations
+
+### 7.1 Blog Title Strategy — Brand + Model Anchor with Multi-Fact Teaser
+
+**Problem:** Early titles were either too generic ("5 Car Facts from April 10") or tried too hard with clickbait ("The Electric Sports Car That Changed Everything for EVs") — lacking searchable keywords and not signaling multi-fact content.
+
+**Evolution:**
+1. **V1** (initial): Generic listicle titles, no keyword targeting
+2. **V2** (first update): Titles hinted at the most prominent fact — curiosity-driven but sometimes vague (e.g., "When a Seatbelt Revolutionized Automobile Safety Forever")
+3. **V3** (current): Anchored on the FIRST fact's brand + model + event, with a teaser signaling additional content
+
+**Current format:**
+```
+<Brand Model Event> — And 4 More Fascinating Car Facts
+How the <Brand Model> Changed <Outcome> — Plus 4 More Automotive Stories
+<Brand Model>: <Key Event> (And 4 More You Should Know)
+```
+
+**Rules:**
+- Always include the specific brand and model from the first fact (e.g., "Ford Model A", "Tesla Roadster")
+- Keep between 50-60 characters (hard max 70)
+- Teaser must signal the article contains multiple facts (e.g., "+ 4 more facts")
+- Confident, intriguing tone — NOT tabloid clickbait
+- No overused phrases ("You Won't Believe", "Shocking Truth")
+- Every title must contain real, searchable keywords
+
+**Example output:** "Ford Model A: The Birth of the Affordable Car (And 4 More You Should Know)"
+
+**Lesson:** Titles should serve dual purpose — rank for specific keywords (brand + model) while also honestly communicating the article format (multi-fact post). The "and X more" teaser sets proper expectations without sacrificing click-through rate.
+
+---
+
+### 7.2 Meaningful Anchor IDs for Deep Linking
+
+**Problem:** Fact sections used generic anchors (`#fact-1`, `#fact-2`) — not SEO-friendly and causing ID collisions in Cosmos DB for same-date posts.
+
+**Fix:** Generated slug-based anchors from car model + year: `#ford-model-48-1935`, `#bmw-3-0-csl-1972`
+
+**Implementation:** `SlugHelper.GenerateAnchorId(fact)` creates URL-safe slugs from `{carModel}-{year}`
+
+**Lesson:** Anchor IDs should be descriptive and keyword-rich — they're visible in URLs when shared and help search engines understand page structure.
+
+---
+
+### 7.3 Internal Backlinking via Cosmos DB Keywords
+
+**Problem:** No cross-post linking — each post was an island. Search engines reward sites with strong internal link graphs.
+
+**Solution — two-tier backlinking system:**
+
+1. **Inline backlinks (per-fact):** Each fact section gets one contextual link to a related fact from another post. Presented subtly: *"🔗 Speaking of which — the BMW 328 (1936) has a story worth knowing too."*
+
+2. **Related posts section (bottom of page):** Replaces the old FAQ section with "🔍 You Might Also Find These Interesting" — 4 post-level cards with thumbnail images in a 2×2 grid layout.
+
+**Keyword-based matching:** Each fact has 5-8 keyword tags stored in Cosmos DB. `ARRAY_CONTAINS` queries find related facts/posts. Weighted random selection (`1/(backlinkCount+1)`) ensures even distribution.
+
+**Backlink count tracking:** Every linked record's `backlinkCount` is incremented in Cosmos DB after publish — prevents the same posts from being over-linked.
+
+**Total internal links per post:** ~9 (5 inline + 4 related posts) — up from zero before.
+
+**Lesson:** Internal linking is a high-ROI SEO technique. Automating it via keyword matching + weighted selection creates an organic-feeling link graph that scales without manual curation.
+
+---
+
+### 7.4 Per-Fact Keyword Tagging for Cross-Referencing
+
+**Problem:** No structured metadata per fact — couldn't programmatically find related content.
+
+**Solution:** The SEO prompt generates 5-8 lowercase keyword tags per fact (e.g., `["ford", "v8", "flathead", "engine", "american", "sedan"]`). Tags cover: manufacturer, model, vehicle category, technology concepts, era descriptors.
+
+**Storage:** Cosmos DB serverless container (`fact-keywords`), one record per fact with: `id`, `postUrl`, `factUrl`, `anchorId`, `title`, `carModel`, `year`, `keywords[]`, `imageUrl`, `postTitle`, `backlinkCount`, `createdAt`.
+
+**Lesson:** Structured keyword metadata enables features beyond SEO (backlinking, related posts, search). Invest in generating good metadata upfront — it compounds in value.
+
+---
+
+### 7.5 WordPress.com Strips `<script>` Tags — No JSON-LD
+
+**Attempted:** Adding JSON-LD structured data (`<script type="application/ld+json">`) for rich search results.
+
+**Failed:** WordPress.com strips all `<script>` tags from post content. This is a platform restriction, not a bug.
+
+**Workaround:** Use microdata attributes (`itemscope`, `itemprop`, `itemtype`) directly in HTML elements instead. Already implemented throughout the fact sections.
+
+**Lesson:** Know your publishing platform's HTML sanitization rules before investing in structured data. WordPress.com is more restrictive than self-hosted WordPress.
+
+---
+
+### 7.6 Related Posts Section Design — Compact Thumbnail Cards
+
+**Problem:** The FAQ section at the bottom of each post was generic boilerplate that added little SEO or engagement value.
+
+**Replacement:** "You Might Also Find These Interesting" section with 4 related post cards. Each card has:
+- Thumbnail image (120px height, `object-fit: cover`)
+- Post title as a clickable link
+- Compact 2×2 flexbox grid layout (`flex: 1 1 calc(50% - 12px)`)
+- Subtle styling (light border, rounded corners, `#fafafa` background)
+
+**Data source:** Cards are fetched from Cosmos DB, grouped by `postUrl` (distinct posts, not individual facts), with weighted random selection favoring lower `backlinkCount`.
+
+**Lesson:** Replace generic SEO boilerplate with genuinely useful navigation elements. Related content cards serve both SEO (internal links) and UX (reader engagement).
+
 
 ```csharp
 // Detect Azure environment
