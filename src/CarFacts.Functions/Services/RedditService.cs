@@ -117,4 +117,10 @@ public sealed class RedditService : ISocialMediaService
 
         _logger.LogInformation("Reddit link posted to r/{Sub}", subreddit);
     }
+
+    public Task PostRawAsync(string content, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Reddit PostRawAsync not implemented yet");
+        return Task.CompletedTask;
+    }
 }

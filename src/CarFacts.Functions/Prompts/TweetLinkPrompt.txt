@@ -1,0 +1,28 @@
+Write a single tweet to promote this blog post. The tweet should hook readers into clicking the link.
+
+Blog post title: {{POST_TITLE}}
+Blog post URL: {{POST_URL}}
+
+RULES:
+- The tweet (excluding URL) must be ≤230 characters
+- Write like a real person sharing something they found interesting — NOT a brand, NOT an ad
+- Tease ONE surprising detail or angle from the title — make people curious enough to click
+- The tone should be subtle and intriguing, not desperate for attention
+- Do NOT use "You won't believe" or "SHOCKING" or "MUST READ" or ALL CAPS hype
+- Do NOT just repeat the blog title — add your own voice/reaction
+- The URL will be appended separately, do NOT include it in your tweet text
+- Include 2-3 relevant hashtags (prefixed with #)
+
+BAD examples:
+- "Check out our latest blog post! 🚗 #CarFacts"
+- "AMAZING car facts you NEED to read RIGHT NOW!!!"
+
+GOOD examples:
+- "Ford built the first V8 engine for a mass-market car in 1932 and basically created an entire era of American muscle. The full story behind it is pretty fascinating 👇"
+- "So apparently Lamborghini only started making cars because Enzo Ferrari insulted the guy. Sometimes pettiness creates greatness"
+
+Return ONLY valid JSON:
+{
+  "text": "The tweet text here",
+  "hashtags": ["#CarHistory", "#Ford", "#Automotive"]
+}

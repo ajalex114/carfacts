@@ -39,5 +39,8 @@
     <EmbeddedResource Include="Prompts\UserPrompt.txt" />
     <EmbeddedResource Include="Prompts\SeoSystemPrompt.txt" />
     <EmbeddedResource Include="Prompts\SeoUserPrompt.txt" />
+    <EmbeddedResource Include="Prompts\TweetFactsSystemPrompt.txt" />
+    <EmbeddedResource Include="Prompts\TweetFactsUserPrompt.txt" />
+    <EmbeddedResource Include="Prompts\TweetLinkPrompt.txt" />
   </ItemGroup>
 </Project>

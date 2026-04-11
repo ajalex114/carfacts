@@ -30,4 +30,16 @@ public interface IFactKeywordStore
     /// Increments the backlinkCount for each specified record ID.
     /// </summary>
     Task IncrementBacklinkCountsAsync(IEnumerable<string> recordIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all distinct posts with their aggregate twitterCount and backlinkCount
+    /// for weighted social media post selection.
+    /// </summary>
+    Task<List<FactKeywordRecord>> GetAllPostRecordsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Increments the platform-specific social media counter (e.g., twitterCount)
+    /// and backlinkCount for all records matching the given postUrl.
+    /// </summary>
+    Task IncrementSocialCountsAsync(string postUrl, string platform, CancellationToken cancellationToken = default);
 }

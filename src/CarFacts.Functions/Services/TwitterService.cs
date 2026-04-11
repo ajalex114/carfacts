@@ -75,6 +75,35 @@ public sealed class TwitterService : ISocialMediaService
         _logger.LogInformation("Tweet posted successfully");
     }
 
+    public async Task PostRawAsync(string content, CancellationToken cancellationToken = default)
+    {
+        if (content.Length > 280)
+            content = content[..277] + "…";
+
+        var payload = JsonSerializer.Serialize(new { text = content });
+
+        var consumerKey = _settings.TwitterConsumerKey;
+        var consumerSecret = _settings.TwitterConsumerSecret;
+        var accessToken = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessToken, cancellationToken);
+        var accessTokenSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessTokenSecret, cancellationToken);
+
+        var authHeader = BuildOAuth1Header("POST", TweetEndpoint, consumerKey, consumerSecret, accessToken, accessTokenSecret);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, TweetEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", authHeader);
+        request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Twitter raw post failed ({Status}): {Body}", response.StatusCode, body);
+        }
+        response.EnsureSuccessStatusCode();
+
+        _logger.LogInformation("Raw tweet posted successfully");
+    }
+
     private static string BuildOAuth1Header(
         string method, string url,
         string consumerKey, string consumerSecret,

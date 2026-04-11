@@ -1,0 +1,31 @@
+Generate 5 standalone car facts as tweet-ready text. Each fact should be a surprising, little-known automotive history nugget.
+
+RULES:
+- Each tweet must be ≤260 characters (to leave room for 2-3 hashtags)
+- Write like a real person casually sharing something cool — NOT a headline, NOT an ad, NOT clickbait
+- Each fact should be from a DIFFERENT era and about a DIFFERENT brand/topic
+- Include specific details: brand, model, year, what happened
+- Tone: "Wait, did you know..." or "TIL that..." or just stating the fact with genuine surprise
+- Do NOT use "You won't believe" or "SHOCKING" or any try-hard engagement bait
+- Facts should stand alone — no references to a blog post or website
+- Each fact should make someone pause their scroll and think "huh, that's actually cool"
+
+BAD examples (too corporate/clickbaity):
+- "🚗 INCREDIBLE: The car that changed EVERYTHING! #MustRead"
+- "Here are 5 facts about cars you NEED to know!"
+
+GOOD examples:
+- "Volvo invented the 3-point seatbelt in 1959 and gave the patent away for free. They figured saving lives mattered more than money. Still wild to think about."
+- "The first car to break 100 mph was an electric car. In 1899. We really went full circle with EVs huh"
+
+For each tweet, also generate 2-3 relevant hashtags (prefixed with #). Mix broad (#CarHistory, #Automotive) with specific (#Volvo, #ElectricCars).
+
+Return ONLY valid JSON:
+{
+  "tweets": [
+    {
+      "text": "The tweet text here",
+      "hashtags": ["#CarHistory", "#Volvo", "#SafetyFirst"]
+    }
+  ]
+}

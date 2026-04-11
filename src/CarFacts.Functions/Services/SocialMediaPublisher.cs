@@ -50,4 +50,30 @@ public sealed class SocialMediaPublisher
 
         _logger.LogInformation("Social media publishing complete");
     }
+
+    /// <summary>
+    /// Posts pre-formatted content to a specific platform by name.
+    /// </summary>
+    public async Task PublishRawAsync(string platformName, string content, CancellationToken cancellationToken = default)
+    {
+        var service = _services.FirstOrDefault(s =>
+            s.IsEnabled && s.PlatformName.Equals(platformName, StringComparison.OrdinalIgnoreCase));
+
+        if (service == null)
+        {
+            _logger.LogWarning("Platform {Platform} not found or not enabled — skipping raw post", platformName);
+            return;
+        }
+
+        await service.PostRawAsync(content, cancellationToken);
+        _logger.LogInformation("Raw post published to {Platform}", platformName);
+    }
+
+    /// <summary>
+    /// Returns the names of all enabled social media platforms.
+    /// </summary>
+    public List<string> GetEnabledPlatformNames()
+    {
+        return _services.Where(s => s.IsEnabled).Select(s => s.PlatformName).ToList();
+    }
 }

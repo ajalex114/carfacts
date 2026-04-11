@@ -122,4 +122,50 @@ public sealed class CosmosFactKeywordStore : IFactKeywordStore
             }
         }
     }
+
+    public async Task<List<FactKeywordRecord>> GetAllPostRecordsAsync(CancellationToken cancellationToken = default)
+    {
+        var query = new QueryDefinition("SELECT * FROM c");
+        var results = new List<FactKeywordRecord>();
+        using var iterator = _container.GetItemQueryIterator<FactKeywordRecord>(query);
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            results.AddRange(response);
+        }
+
+        _logger.LogInformation("Retrieved {Count} total records for social media selection", results.Count);
+        return results;
+    }
+
+    public async Task IncrementSocialCountsAsync(string postUrl, string platform, CancellationToken cancellationToken = default)
+    {
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.postUrl = @postUrl")
+            .WithParameter("@postUrl", postUrl);
+
+        var records = new List<FactKeywordRecord>();
+        using var iterator = _container.GetItemQueryIterator<FactKeywordRecord>(query);
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            records.AddRange(response);
+        }
+
+        foreach (var record in records)
+        {
+            switch (platform.ToLowerInvariant())
+            {
+                case "twitter":
+                    record.TwitterCount++;
+                    break;
+            }
+            record.BacklinkCount++;
+
+            await _container.ReplaceItemAsync(record, record.Id, new PartitionKey(record.Id), cancellationToken: cancellationToken);
+            _logger.LogInformation("Incremented {Platform} count for {Id} (twitter={Tc}, backlink={Bc})",
+                platform, record.Id, record.TwitterCount, record.BacklinkCount);
+        }
+    }
 }

@@ -38,4 +38,16 @@ public sealed class NullFactKeywordStore : IFactKeywordStore
         _logger.LogWarning("Cosmos DB not configured — skipping backlink count increment");
         return Task.CompletedTask;
     }
+
+    public Task<List<FactKeywordRecord>> GetAllPostRecordsAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — skipping social media post lookup");
+        return Task.FromResult(new List<FactKeywordRecord>());
+    }
+
+    public Task IncrementSocialCountsAsync(string postUrl, string platform, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — skipping social count increment");
+        return Task.CompletedTask;
+    }
 }

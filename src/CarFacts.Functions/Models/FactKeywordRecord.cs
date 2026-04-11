@@ -41,6 +41,9 @@ public sealed class FactKeywordRecord
     [JsonPropertyName("backlinkCount")]
     public int BacklinkCount { get; set; }
 
+    [JsonPropertyName("twitterCount")]
+    public int TwitterCount { get; set; }
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

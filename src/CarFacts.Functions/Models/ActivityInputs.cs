@@ -68,3 +68,59 @@ public sealed class BacklinksResult
     public List<BacklinkSuggestion> Backlinks { get; set; } = [];
     public List<RelatedPostSuggestion> RelatedPosts { get; set; } = [];
 }
+
+/// <summary>
+/// Input for the social media content generation orchestrator.
+/// </summary>
+public sealed class SocialMediaOrchestratorInput
+{
+    public string PostUrl { get; set; } = string.Empty;
+    public string PostTitle { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Input for the generate-tweet-link activity.
+/// </summary>
+public sealed class GenerateTweetLinkInput
+{
+    public string PostUrl { get; set; } = string.Empty;
+    public string PostTitle { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Input for the store-social-queue activity.
+/// </summary>
+public sealed class StoreSocialQueueInput
+{
+    public List<TweetFactResult> Facts { get; set; } = [];
+    public TweetLinkResult? LinkTweet { get; set; }
+    public List<string> EnabledPlatforms { get; set; } = [];
+}
+
+/// <summary>
+/// Result from generating standalone tweet facts.
+/// </summary>
+public sealed class TweetFactResult
+{
+    public string Text { get; set; } = string.Empty;
+    public List<string> Hashtags { get; set; } = [];
+}
+
+/// <summary>
+/// Result from generating a blog post link tweet.
+/// </summary>
+public sealed class TweetLinkResult
+{
+    public string Text { get; set; } = string.Empty;
+    public List<string> Hashtags { get; set; } = [];
+    public string PostUrl { get; set; } = string.Empty;
+    public string PostTitle { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Input for the post-from-queue activity.
+/// </summary>
+public sealed class PostFromQueueInput
+{
+    public string Platform { get; set; } = string.Empty;
+}

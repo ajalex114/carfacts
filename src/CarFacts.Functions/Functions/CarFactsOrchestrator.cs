@@ -148,17 +148,14 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("Post published: {PostUrl}", publishResult.PostUrl);
 
-        // Step 7: Social media + keyword storage (best-effort, parallel)
-        var socialTask = context.CallActivityAsync<bool>(
-            nameof(PublishSocialMediaActivity),
-            new SocialPublishInput
+        // Step 7: Social media queue generation + keyword storage (best-effort, parallel)
+        var socialTask = context.CallSubOrchestratorAsync(
+            nameof(SocialMediaOrchestrator),
+            new SocialMediaOrchestratorInput
             {
-                Teaser = seo.SocialMediaTeaser,
                 PostUrl = publishResult.PostUrl,
-                Title = seo.MainTitle,
-                Hashtags = seo.SocialMediaHashtags
-            },
-            new TaskOptions(SocialRetryPolicy));
+                PostTitle = seo.MainTitle
+            });
 
         var keywordTask = context.CallActivityAsync<bool>(
             nameof(StoreFactKeywordsActivity),
@@ -176,7 +173,7 @@ public static class CarFactsOrchestrator
             new TaskOptions(WordPressRetryPolicy));
 
         try { await socialTask; }
-        catch (Exception ex) { logger.LogWarning("Social media publishing failed (non-blocking): {Message}", ex.Message); }
+        catch (Exception ex) { logger.LogWarning("Social media queue generation failed (non-blocking): {Message}", ex.Message); }
 
         try { await keywordTask; }
         catch (Exception ex) { logger.LogWarning("Keyword storage failed (non-blocking): {Message}", ex.Message); }

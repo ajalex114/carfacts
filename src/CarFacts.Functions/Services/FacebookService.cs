@@ -70,4 +70,10 @@ public sealed class FacebookService : ISocialMediaService
 
         _logger.LogInformation("Facebook post published to page {PageId}", pageId);
     }
+
+    public Task PostRawAsync(string content, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Facebook PostRawAsync not implemented yet");
+        return Task.CompletedTask;
+    }
 }

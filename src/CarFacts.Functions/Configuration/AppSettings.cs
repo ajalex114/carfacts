@@ -82,6 +82,9 @@ public sealed class SocialMediaSettings
     public bool FacebookEnabled { get; set; }
     public bool RedditEnabled { get; set; }
 
+    // Posting schedule (NCRONTAB: every 4 hours by default)
+    public string PostingCronExpression { get; set; } = "0 0 */4 * * *";
+
     // Twitter / X
     public string TwitterConsumerKey { get; set; } = string.Empty;
     public string TwitterConsumerSecret { get; set; } = string.Empty;

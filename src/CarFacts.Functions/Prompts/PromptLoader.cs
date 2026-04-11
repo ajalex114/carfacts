@@ -28,6 +28,22 @@ public static class PromptLoader
         return template.Replace("{{CONTENT}}", contentSummary);
     }
 
+    public static string LoadTweetFactsSystemPrompt()
+    {
+        return LoadResource("CarFacts.Functions.Prompts.TweetFactsSystemPrompt.txt");
+    }
+
+    public static string LoadTweetFactsUserPrompt()
+    {
+        return LoadResource("CarFacts.Functions.Prompts.TweetFactsUserPrompt.txt");
+    }
+
+    public static string LoadTweetLinkPrompt(string postTitle, string postUrl)
+    {
+        var template = LoadResource("CarFacts.Functions.Prompts.TweetLinkPrompt.txt");
+        return template.Replace("{{POST_TITLE}}", postTitle).Replace("{{POST_URL}}", postUrl);
+    }
+
     private static string LoadResource(string resourceName)
     {
         using var stream = Assembly.GetManifestResourceStream(resourceName)

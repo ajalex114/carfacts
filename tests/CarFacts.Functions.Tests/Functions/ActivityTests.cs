@@ -1,5 +1,6 @@
 using CarFacts.Functions.Functions.Activities;
 using CarFacts.Functions.Models;
+using CarFacts.Functions.Services;
 using CarFacts.Functions.Services.Interfaces;
 using CarFacts.Functions.Tests.Helpers;
 using FluentAssertions;
@@ -336,6 +337,212 @@ public class ActivityTests
 
         // BMW 3.0 CSL, 1972 → "bmw-3-0-csl-1972"
         records[2].AnchorId.Should().Be("bmw-3-0-csl-1972");
+    }
+
+    #endregion
+
+    #region StoreSocialMediaQueueActivity
+
+    [Fact]
+    public async Task StoreSocialQueue_StoresCorrectItemCount()
+    {
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        var capturedItems = new List<SocialMediaQueueItem>();
+        queueStore.Setup(s => s.AddItemsAsync(It.IsAny<IEnumerable<SocialMediaQueueItem>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<SocialMediaQueueItem>, CancellationToken>((items, _) => capturedItems.AddRange(items))
+            .Returns(Task.CompletedTask);
+
+        var activity = new StoreSocialMediaQueueActivity(
+            queueStore.Object,
+            Mock.Of<ILogger<StoreSocialMediaQueueActivity>>());
+
+        var input = new StoreSocialQueueInput
+        {
+            Facts = [
+                new TweetFactResult { Text = "Fact 1", Hashtags = ["#test1"] },
+                new TweetFactResult { Text = "Fact 2", Hashtags = ["#test2"] }
+            ],
+            LinkTweet = new TweetLinkResult
+            {
+                Text = "Check this out",
+                Hashtags = ["#cars"],
+                PostUrl = "https://example.com/post",
+                PostTitle = "Test Post"
+            },
+            EnabledPlatforms = ["Twitter/X"]
+        };
+
+        var result = await activity.Run(input);
+
+        result.Should().BeTrue();
+        // 2 facts + 1 link = 3 items for 1 platform
+        capturedItems.Should().HaveCount(3);
+        capturedItems.Count(i => i.Type == "fact").Should().Be(2);
+        capturedItems.Count(i => i.Type == "link").Should().Be(1);
+        capturedItems.All(i => i.Platform == "Twitter/X").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task StoreSocialQueue_MultiplePlatforms_DuplicatesItems()
+    {
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        var capturedItems = new List<SocialMediaQueueItem>();
+        queueStore.Setup(s => s.AddItemsAsync(It.IsAny<IEnumerable<SocialMediaQueueItem>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<SocialMediaQueueItem>, CancellationToken>((items, _) => capturedItems.AddRange(items))
+            .Returns(Task.CompletedTask);
+
+        var activity = new StoreSocialMediaQueueActivity(
+            queueStore.Object,
+            Mock.Of<ILogger<StoreSocialMediaQueueActivity>>());
+
+        var input = new StoreSocialQueueInput
+        {
+            Facts = [new TweetFactResult { Text = "Fact 1", Hashtags = ["#test"] }],
+            LinkTweet = null,
+            EnabledPlatforms = ["Twitter/X", "Facebook"]
+        };
+
+        await activity.Run(input);
+
+        // 1 fact × 2 platforms = 2 items
+        capturedItems.Should().HaveCount(2);
+        capturedItems.Select(i => i.Platform).Distinct().Should().HaveCount(2);
+    }
+
+    #endregion
+
+    #region PostFromQueueActivity
+
+    [Fact]
+    public async Task PostFromQueue_WhenQueueEmpty_ReturnsFalse()
+    {
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        queueStore.Setup(s => s.GetRandomItemAsync("Twitter/X", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SocialMediaQueueItem?)null);
+
+        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
+            Enumerable.Empty<ISocialMediaService>(),
+            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
+
+        var activity = new PostFromQueueActivity(
+            queueStore.Object,
+            new Mock<IFactKeywordStore>().Object,
+            publisher,
+            Mock.Of<ILogger<PostFromQueueActivity>>());
+
+        var result = await activity.Run(new PostFromQueueInput { Platform = "Twitter/X" });
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PostFromQueue_FactItem_PostsAndDeletes_NoSocialCountIncrement()
+    {
+        var item = new SocialMediaQueueItem
+        {
+            Id = "test-id",
+            Platform = "Twitter/X",
+            Content = "Cool car fact #CarHistory",
+            Type = "fact"
+        };
+
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        queueStore.Setup(s => s.GetRandomItemAsync("Twitter/X", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(item);
+
+        var factStore = new Mock<IFactKeywordStore>();
+
+        var mockService = new Mock<ISocialMediaService>();
+        mockService.Setup(s => s.PlatformName).Returns("Twitter/X");
+        mockService.Setup(s => s.IsEnabled).Returns(true);
+
+        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
+            new[] { mockService.Object },
+            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
+
+        var activity = new PostFromQueueActivity(
+            queueStore.Object,
+            factStore.Object,
+            publisher,
+            Mock.Of<ILogger<PostFromQueueActivity>>());
+
+        var result = await activity.Run(new PostFromQueueInput { Platform = "Twitter/X" });
+
+        result.Should().BeTrue();
+        mockService.Verify(s => s.PostRawAsync("Cool car fact #CarHistory", It.IsAny<CancellationToken>()), Times.Once);
+        queueStore.Verify(s => s.DeleteItemAsync("test-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
+        // Fact type should NOT increment social counts
+        factStore.Verify(s => s.IncrementSocialCountsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task PostFromQueue_LinkItem_PostsDeletesAndIncrementsCounts()
+    {
+        var item = new SocialMediaQueueItem
+        {
+            Id = "link-id",
+            Platform = "Twitter/X",
+            Content = "Check out this post https://example.com",
+            Type = "link",
+            PostUrl = "https://example.com/my-post"
+        };
+
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        queueStore.Setup(s => s.GetRandomItemAsync("Twitter/X", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(item);
+
+        var factStore = new Mock<IFactKeywordStore>();
+
+        var mockService = new Mock<ISocialMediaService>();
+        mockService.Setup(s => s.PlatformName).Returns("Twitter/X");
+        mockService.Setup(s => s.IsEnabled).Returns(true);
+
+        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
+            new[] { mockService.Object },
+            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
+
+        var activity = new PostFromQueueActivity(
+            queueStore.Object,
+            factStore.Object,
+            publisher,
+            Mock.Of<ILogger<PostFromQueueActivity>>());
+
+        var result = await activity.Run(new PostFromQueueInput { Platform = "Twitter/X" });
+
+        result.Should().BeTrue();
+        mockService.Verify(s => s.PostRawAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        queueStore.Verify(s => s.DeleteItemAsync("link-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
+        // Link type SHOULD increment social counts
+        factStore.Verify(s => s.IncrementSocialCountsAsync("https://example.com/my-post", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    #endregion
+
+    #region GetEnabledPlatformsActivity
+
+    [Fact]
+    public async Task GetEnabledPlatforms_ReturnsEnabledPlatformNames()
+    {
+        var twitter = new Mock<ISocialMediaService>();
+        twitter.Setup(s => s.PlatformName).Returns("Twitter/X");
+        twitter.Setup(s => s.IsEnabled).Returns(true);
+
+        var facebook = new Mock<ISocialMediaService>();
+        facebook.Setup(s => s.PlatformName).Returns("Facebook");
+        facebook.Setup(s => s.IsEnabled).Returns(false);
+
+        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
+            new[] { twitter.Object, facebook.Object },
+            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
+
+        var activity = new GetEnabledPlatformsActivity(
+            publisher,
+            Mock.Of<ILogger<GetEnabledPlatformsActivity>>());
+
+        var result = await activity.Run("check");
+
+        result.Should().HaveCount(1);
+        result[0].Should().Be("Twitter/X");
     }
 
     #endregion

@@ -223,9 +223,11 @@ static void RegisterCosmosDb(
                 }
             }));
         services.AddSingleton<IFactKeywordStore, CosmosFactKeywordStore>();
+        services.AddSingleton<ISocialMediaQueueStore, CosmosSocialMediaQueueStore>();
     }
     else
     {
         services.AddSingleton<IFactKeywordStore, NullFactKeywordStore>();
+        services.AddSingleton<ISocialMediaQueueStore, NullSocialMediaQueueStore>();
     }
 }
