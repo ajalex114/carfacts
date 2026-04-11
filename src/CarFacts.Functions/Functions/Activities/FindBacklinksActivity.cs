@@ -85,6 +85,7 @@ public sealed class FindBacklinksActivity
                 var best = records.FirstOrDefault(r => !string.IsNullOrEmpty(r.ImageUrl)) ?? records.First();
                 return new { PostUrl = g.Key, Record = best, TotalBacklinks = totalBacklinks, AllRecordIds = records.Select(r => r.Id).ToList() };
             })
+            .Where(g => !string.IsNullOrEmpty(g.Record.ImageUrl)) // Only posts with images for the card section
             .ToList();
 
         // Weighted random selection for 4 posts
