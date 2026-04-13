@@ -159,13 +159,16 @@ public sealed class CosmosFactKeywordStore : IFactKeywordStore
             {
                 case "twitter":
                     record.TwitterCount++;
+                    record.BacklinkCount++;
+                    break;
+                case "medium":
+                    record.MediumCount++;
                     break;
             }
-            record.BacklinkCount++;
 
             await _container.ReplaceItemAsync(record, record.Id, new PartitionKey(record.Id), cancellationToken: cancellationToken);
-            _logger.LogInformation("Incremented {Platform} count for {Id} (twitter={Tc}, backlink={Bc})",
-                platform, record.Id, record.TwitterCount, record.BacklinkCount);
+            _logger.LogInformation("Incremented {Platform} count for {Id} (twitter={Tc}, medium={Mc}, backlink={Bc})",
+                platform, record.Id, record.TwitterCount, record.MediumCount, record.BacklinkCount);
         }
     }
 }

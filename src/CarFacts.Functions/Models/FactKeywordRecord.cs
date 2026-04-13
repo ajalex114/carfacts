@@ -44,6 +44,9 @@ public sealed class FactKeywordRecord
     [JsonPropertyName("twitterCount")]
     public int TwitterCount { get; set; }
 
+    [JsonPropertyName("mediumCount")]
+    public int MediumCount { get; set; }
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

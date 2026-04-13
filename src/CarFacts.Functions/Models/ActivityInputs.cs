@@ -136,3 +136,25 @@ public sealed class SocialMediaContentSettings
     public int FactsPerDay { get; set; } = 5;
     public int LinkPostsPerDay { get; set; } = 1;
 }
+
+/// <summary>
+/// Input for the publish-to-medium activity.
+/// </summary>
+public sealed class PublishToMediumInput
+{
+    public RawCarFactsContent Content { get; set; } = null!;
+    public SeoMetadata Seo { get; set; } = null!;
+    public string PostUrl { get; set; } = string.Empty;
+    public string PostTitle { get; set; } = string.Empty;
+    public string TodayDate { get; set; } = string.Empty;
+    public List<UploadedMedia> Media { get; set; } = [];
+}
+
+/// <summary>
+/// Input for the increment-social-counts activity.
+/// </summary>
+public sealed class IncrementSocialCountsInput
+{
+    public string PostUrl { get; set; } = string.Empty;
+    public string Platform { get; set; } = string.Empty;
+}

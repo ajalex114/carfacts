@@ -11,6 +11,8 @@ public static class SecretNames
     public const string WordPressOAuthToken = "WordPress-OAuthToken";
     public const string CosmosDbConnectionString = "CosmosDb-ConnectionString";
 
+    public const string MediumIntegrationToken = "Medium-IntegrationToken";
+
     // Social media secrets
     public const string TwitterAccessToken = "Twitter-AccessToken";
     public const string TwitterAccessTokenSecret = "Twitter-AccessTokenSecret";

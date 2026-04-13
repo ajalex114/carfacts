@@ -23,3 +23,5 @@ appsettings.Development.json
 # Logs and cache
 logs/
 cache/
+publish/
+deploy.zip
