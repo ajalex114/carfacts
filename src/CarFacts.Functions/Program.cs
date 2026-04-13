@@ -1,7 +1,9 @@
 using CarFacts.Functions.Configuration;
 using CarFacts.Functions.Services;
 using CarFacts.Functions.Services.Interfaces;
+using Azure.Identity;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -25,6 +27,20 @@ if (!isAzure)
 Log.Logger = logConfig.CreateLogger();
 
 var hostBuilder = new HostBuilder()
+    .ConfigureAppConfiguration((context, config) =>
+    {
+        var settings = config.Build();
+        var appConfigEndpoint = settings["AppConfiguration__Endpoint"];
+        if (!string.IsNullOrEmpty(appConfigEndpoint))
+        {
+            config.AddAzureAppConfiguration(options =>
+            {
+                options.Connect(new Uri(appConfigEndpoint), new DefaultAzureCredential())
+                    .TrimKeyPrefix("")
+                    .Select("*");
+            });
+        }
+    })
     .ConfigureFunctionsWorkerDefaults()
     .ConfigureServices((context, services) =>
     {
