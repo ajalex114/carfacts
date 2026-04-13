@@ -24,7 +24,7 @@ public sealed class StoreSocialMediaQueueActivity
     {
         _logger.LogInformation("Storing {FactCount} facts + {LinkCount} link tweets for {PlatformCount} platforms",
             input.Facts.Count,
-            input.LinkTweet != null ? 1 : 0,
+            input.LinkTweets.Count,
             input.EnabledPlatforms.Count);
 
         var items = new List<SocialMediaQueueItem>();
@@ -45,18 +45,18 @@ public sealed class StoreSocialMediaQueueActivity
                 });
             }
 
-            // Add blog post link tweet
-            if (input.LinkTweet != null)
+            // Add blog post link tweets
+            foreach (var linkTweet in input.LinkTweets)
             {
-                var tagLine = string.Join(" ", input.LinkTweet.Hashtags.Take(3));
-                var tweetText = $"{input.LinkTweet.Text}\n\n{tagLine}\n\n{input.LinkTweet.PostUrl}";
+                var tagLine = string.Join(" ", linkTweet.Hashtags.Take(3));
+                var tweetText = $"{linkTweet.Text}\n\n{tagLine}\n\n{linkTweet.PostUrl}";
 
                 items.Add(new SocialMediaQueueItem
                 {
                     Platform = platform,
                     Content = tweetText,
-                    PostUrl = input.LinkTweet.PostUrl,
-                    PostTitle = input.LinkTweet.PostTitle,
+                    PostUrl = linkTweet.PostUrl,
+                    PostTitle = linkTweet.PostTitle,
                     Type = "link"
                 });
             }

@@ -149,12 +149,18 @@ public static class CarFactsOrchestrator
         logger.LogInformation("Post published: {PostUrl}", publishResult.PostUrl);
 
         // Step 7: Social media queue generation + keyword storage (best-effort, parallel)
+        var socialSettings = await context.CallActivityAsync<SocialMediaContentSettings>(
+            nameof(GetSocialMediaSettingsActivity),
+            "read");
+
         var socialTask = context.CallSubOrchestratorAsync(
             nameof(SocialMediaOrchestrator),
             new SocialMediaOrchestratorInput
             {
                 PostUrl = publishResult.PostUrl,
-                PostTitle = seo.MainTitle
+                PostTitle = seo.MainTitle,
+                FactsPerDay = socialSettings.FactsPerDay,
+                LinkPostsPerDay = socialSettings.LinkPostsPerDay
             });
 
         var keywordTask = context.CallActivityAsync<bool>(

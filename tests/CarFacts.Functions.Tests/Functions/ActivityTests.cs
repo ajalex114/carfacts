@@ -362,13 +362,13 @@ public class ActivityTests
                 new TweetFactResult { Text = "Fact 1", Hashtags = ["#test1"] },
                 new TweetFactResult { Text = "Fact 2", Hashtags = ["#test2"] }
             ],
-            LinkTweet = new TweetLinkResult
+            LinkTweets = [new TweetLinkResult
             {
                 Text = "Check this out",
                 Hashtags = ["#cars"],
                 PostUrl = "https://example.com/post",
                 PostTitle = "Test Post"
-            },
+            }],
             EnabledPlatforms = ["Twitter/X"]
         };
 
@@ -398,7 +398,7 @@ public class ActivityTests
         var input = new StoreSocialQueueInput
         {
             Facts = [new TweetFactResult { Text = "Fact 1", Hashtags = ["#test"] }],
-            LinkTweet = null,
+            LinkTweets = [],
             EnabledPlatforms = ["Twitter/X", "Facebook"]
         };
 

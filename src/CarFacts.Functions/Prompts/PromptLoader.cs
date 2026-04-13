@@ -33,9 +33,10 @@ public static class PromptLoader
         return LoadResource("CarFacts.Functions.Prompts.TweetFactsSystemPrompt.txt");
     }
 
-    public static string LoadTweetFactsUserPrompt()
+    public static string LoadTweetFactsUserPrompt(int count = 5)
     {
-        return LoadResource("CarFacts.Functions.Prompts.TweetFactsUserPrompt.txt");
+        var template = LoadResource("CarFacts.Functions.Prompts.TweetFactsUserPrompt.txt");
+        return template.Replace("{{COUNT}}", count.ToString());
     }
 
     public static string LoadTweetLinkPrompt(string postTitle, string postUrl)

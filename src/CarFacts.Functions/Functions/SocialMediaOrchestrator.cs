@@ -8,7 +8,7 @@ namespace CarFacts.Functions.Functions;
 
 /// <summary>
 /// Orchestrator that generates social media content and queues it for scheduled posting.
-/// Generates 5 standalone fact tweets + 1 blog post link tweet per enabled platform.
+/// Generates configurable standalone fact tweets + blog post link tweets per enabled platform.
 /// </summary>
 public static class SocialMediaOrchestrator
 {
@@ -22,26 +22,30 @@ public static class SocialMediaOrchestrator
 
         logger.LogInformation("Starting social media content generation for: {Title}", input.PostTitle);
 
-        // Step 1: Generate 5 standalone tweet facts and blog post link tweet in parallel
+        var factsPerDay = input.FactsPerDay > 0 ? input.FactsPerDay : 5;
+        var linkPostsPerDay = input.LinkPostsPerDay > 0 ? input.LinkPostsPerDay : 1;
+
+        // Step 1: Generate standalone tweet facts and blog post link tweets in parallel
         var factsTask = context.CallActivityAsync<List<TweetFactResult>>(
             nameof(GenerateTweetFactsActivity),
-            "generate");
+            factsPerDay);
 
-        var linkTask = context.CallActivityAsync<TweetLinkResult?>(
+        var linkTask = context.CallActivityAsync<List<TweetLinkResult>>(
             nameof(GenerateTweetLinkActivity),
             new GenerateTweetLinkInput
             {
                 PostUrl = input.PostUrl,
-                PostTitle = input.PostTitle
+                PostTitle = input.PostTitle,
+                LinkCount = linkPostsPerDay
             });
 
         await Task.WhenAll(factsTask, linkTask);
 
         var facts = factsTask.Result;
-        var linkTweet = linkTask.Result;
+        var linkTweets = linkTask.Result;
 
-        logger.LogInformation("Generated {FactCount} tweet facts + {LinkCount} link tweet",
-            facts.Count, linkTweet != null ? 1 : 0);
+        logger.LogInformation("Generated {FactCount} tweet facts + {LinkCount} link tweet(s)",
+            facts.Count, linkTweets.Count);
 
         // Step 2: Get enabled platforms and store all items in the queue
         var enabledPlatforms = await context.CallActivityAsync<List<string>>(
@@ -59,7 +63,7 @@ public static class SocialMediaOrchestrator
             new StoreSocialQueueInput
             {
                 Facts = facts,
-                LinkTweet = linkTweet,
+                LinkTweets = linkTweets,
                 EnabledPlatforms = enabledPlatforms
             });
 

@@ -22,13 +22,13 @@ public sealed class GenerateTweetFactsActivity
 
     [Function(nameof(GenerateTweetFactsActivity))]
     public async Task<List<TweetFactResult>> Run(
-        [ActivityTrigger] string trigger)
+        [ActivityTrigger] int factsCount)
     {
-        _logger.LogInformation("Generating 5 standalone tweet facts");
+        _logger.LogInformation("Generating {Count} standalone tweet facts", factsCount);
 
         var history = new ChatHistory();
         history.AddSystemMessage(PromptLoader.LoadTweetFactsSystemPrompt());
-        history.AddUserMessage(PromptLoader.LoadTweetFactsUserPrompt());
+        history.AddUserMessage(PromptLoader.LoadTweetFactsUserPrompt(factsCount));
 
         var response = await _chatService.GetChatMessageContentAsync(history);
         var content = response.Content

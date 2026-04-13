@@ -1,4 +1,4 @@
-Generate 5 standalone car facts as tweet-ready text. Each fact should be a surprising, little-known automotive history nugget.
+Generate {{COUNT}} standalone car facts as tweet-ready text. Each fact should be a surprising, little-known automotive history nugget.
 
 RULES:
 - Each tweet must be ≤260 characters (to leave room for 2-3 hashtags)

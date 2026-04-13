@@ -1,3 +1,4 @@
+using CarFacts.Functions.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;

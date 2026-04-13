@@ -82,6 +82,10 @@ public sealed class SocialMediaSettings
     public bool FacebookEnabled { get; set; }
     public bool RedditEnabled { get; set; }
 
+    // Content generation counts (per day per platform)
+    public int FactsPerDay { get; set; } = 5;
+    public int LinkPostsPerDay { get; set; } = 1;
+
     // Posting schedule (NCRONTAB: every 4 hours by default)
     public string PostingCronExpression { get; set; } = "0 0 */4 * * *";
 

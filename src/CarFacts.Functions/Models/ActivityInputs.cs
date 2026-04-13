@@ -76,6 +76,8 @@ public sealed class SocialMediaOrchestratorInput
 {
     public string PostUrl { get; set; } = string.Empty;
     public string PostTitle { get; set; } = string.Empty;
+    public int FactsPerDay { get; set; } = 5;
+    public int LinkPostsPerDay { get; set; } = 1;
 }
 
 /// <summary>
@@ -85,6 +87,7 @@ public sealed class GenerateTweetLinkInput
 {
     public string PostUrl { get; set; } = string.Empty;
     public string PostTitle { get; set; } = string.Empty;
+    public int LinkCount { get; set; } = 1;
 }
 
 /// <summary>
@@ -93,7 +96,7 @@ public sealed class GenerateTweetLinkInput
 public sealed class StoreSocialQueueInput
 {
     public List<TweetFactResult> Facts { get; set; } = [];
-    public TweetLinkResult? LinkTweet { get; set; }
+    public List<TweetLinkResult> LinkTweets { get; set; } = [];
     public List<string> EnabledPlatforms { get; set; } = [];
 }
 
@@ -123,4 +126,13 @@ public sealed class TweetLinkResult
 public sealed class PostFromQueueInput
 {
     public string Platform { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Settings for social media content generation counts.
+/// </summary>
+public sealed class SocialMediaContentSettings
+{
+    public int FactsPerDay { get; set; } = 5;
+    public int LinkPostsPerDay { get; set; } = 1;
 }
