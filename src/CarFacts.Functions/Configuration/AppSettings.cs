@@ -73,13 +73,6 @@ public sealed class CosmosDbSettings
     public string ContainerName { get; set; } = "fact-keywords";
 }
 
-public sealed class MediumSettings
-{
-    public const string SectionName = "Medium";
-
-    public bool Enabled { get; set; }
-}
-
 public sealed class SocialMediaSettings
 {
     public const string SectionName = "SocialMedia";

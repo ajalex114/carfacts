@@ -70,7 +70,6 @@ static void RegisterSettings(HostBuilderContext context, IServiceCollection serv
     services.Configure<ScheduleSettings>(config.GetSection(ScheduleSettings.SectionName));
     services.Configure<SocialMediaSettings>(config.GetSection(SocialMediaSettings.SectionName));
     services.Configure<CosmosDbSettings>(config.GetSection(CosmosDbSettings.SectionName));
-    services.Configure<MediumSettings>(config.GetSection(MediumSettings.SectionName));
 }
 
 static void RegisterServices(HostBuilderContext context, IServiceCollection services)
@@ -113,10 +112,6 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
     // Pinterest service (separate from the ISocialMediaService pipeline)
     services.AddHttpClient<PinterestService>();
     services.AddSingleton<IPinterestService>(sp => sp.GetRequiredService<PinterestService>());
-
-    // Medium publishing service
-    services.AddHttpClient<MediumService>();
-    services.AddSingleton<IMediumService>(sp => sp.GetRequiredService<MediumService>());
 
     // Cosmos DB for fact keyword storage
     RegisterCosmosDb(config, services, isLocal);

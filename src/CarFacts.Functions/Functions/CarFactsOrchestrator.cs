@@ -195,49 +195,6 @@ public static class CarFactsOrchestrator
         try { await keywordTask; }
         catch (Exception ex) { logger.LogWarning("Keyword storage failed (non-blocking): {Message}", ex.Message); }
 
-        // Step 8: Publish to Medium (best-effort, after keyword storage so records exist for count increment)
-        try
-        {
-            var mediumResult = await context.CallActivityAsync<MediumPublishResult>(
-                nameof(PublishToMediumActivity),
-                new PublishToMediumInput
-                {
-                    Content = content,
-                    Seo = seo,
-                    PostUrl = publishResult.PostUrl,
-                    PostTitle = seo.MainTitle,
-                    TodayDate = todayDate,
-                    Media = uploadedMedia
-                },
-                new TaskOptions(SocialRetryPolicy));
-
-            if (mediumResult.Success)
-            {
-                logger.LogInformation("Medium article published: {MediumUrl}", mediumResult.MediumUrl);
-
-                // Increment MediumCount on fact-keyword records
-                try
-                {
-                    await context.CallActivityAsync<bool>(
-                        nameof(IncrementSocialCountsActivity),
-                        new IncrementSocialCountsInput
-                        {
-                            PostUrl = publishResult.PostUrl,
-                            Platform = "medium"
-                        },
-                        new TaskOptions(WordPressRetryPolicy));
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning("Medium count increment failed (non-blocking): {Message}", ex.Message);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning("Medium publishing failed (non-blocking): {Message}", ex.Message);
-        }
-
         logger.LogInformation("CarFacts pipeline complete for {Date}: {PostUrl}", todayDate, publishResult.PostUrl);
         return publishResult.PostUrl;
     }
