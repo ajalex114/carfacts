@@ -40,7 +40,17 @@ public static class CarFactsOrchestrator
             todayDate,
             new TaskOptions(LlmRetryPolicy));
 
-        logger.LogInformation("Generated {Count} facts, starting SEO + image generation", content.Facts.Count);
+        logger.LogInformation("Generated {Count} facts, shuffling order", content.Facts.Count);
+
+        // Shuffle facts so the first fact (and thus the title image) isn't always the oldest
+        // Use deterministic GUID from orchestration context to ensure replay-safety
+        var shuffleSeed = context.NewGuid().GetHashCode();
+        var rng = new Random(shuffleSeed);
+        var shuffled = content.Facts.OrderBy(_ => rng.Next()).ToList();
+        content = new RawCarFactsContent { Facts = shuffled };
+
+        logger.LogInformation("Fact order after shuffle: {Years}",
+            string.Join(", ", content.Facts.Select(f => f.Year)));
 
         // Steps 2 & 3: SEO + images in parallel
         // SEO runs as one LLM call; images run sequentially inside one activity
