@@ -171,4 +171,48 @@ public sealed class CosmosFactKeywordStore : IFactKeywordStore
                 platform, record.Id, record.TwitterCount, record.MediumCount, record.BacklinkCount);
         }
     }
+
+    public async Task<List<FactKeywordRecord>> GetFactsForPinterestAsync(int maxResults = 20, CancellationToken cancellationToken = default)
+    {
+        // Get facts that have images, ordered by pinterestCount ascending (lowest first), then by createdAt
+        var query = new QueryDefinition(
+            "SELECT * FROM c WHERE c.imageUrl != '' AND c.imageUrl != null ORDER BY c.pinterestCount ASC, c.createdAt ASC OFFSET 0 LIMIT @limit")
+            .WithParameter("@limit", maxResults);
+
+        var results = new List<FactKeywordRecord>();
+        using var iterator = _container.GetItemQueryIterator<FactKeywordRecord>(query);
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            results.AddRange(response);
+        }
+
+        _logger.LogInformation("Retrieved {Count} facts for Pinterest selection", results.Count);
+        return results;
+    }
+
+    public async Task IncrementPinterestCountAsync(string recordId, string boardName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _container.ReadItemAsync<FactKeywordRecord>(
+                recordId, new PartitionKey(recordId), cancellationToken: cancellationToken);
+            var record = response.Resource;
+
+            record.PinterestCount++;
+            record.BacklinkCount++;
+
+            if (!record.PinterestBoards.Contains(boardName, StringComparer.OrdinalIgnoreCase))
+                record.PinterestBoards.Add(boardName);
+
+            await _container.ReplaceItemAsync(record, recordId, new PartitionKey(recordId), cancellationToken: cancellationToken);
+            _logger.LogInformation("Incremented Pinterest count for {Id} to {Count}, board: {Board}",
+                recordId, record.PinterestCount, boardName);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _logger.LogWarning("Record {Id} not found for Pinterest increment — skipping", recordId);
+        }
+    }
 }

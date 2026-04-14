@@ -110,6 +110,10 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
     services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<RedditService>());
     services.AddSingleton<SocialMediaPublisher>();
 
+    // Pinterest service (separate from the ISocialMediaService pipeline)
+    services.AddHttpClient<PinterestService>();
+    services.AddSingleton<IPinterestService>(sp => sp.GetRequiredService<PinterestService>());
+
     // Medium publishing service
     services.AddHttpClient<MediumService>();
     services.AddSingleton<IMediumService>(sp => sp.GetRequiredService<MediumService>());

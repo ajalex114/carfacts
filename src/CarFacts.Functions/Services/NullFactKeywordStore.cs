@@ -50,4 +50,16 @@ public sealed class NullFactKeywordStore : IFactKeywordStore
         _logger.LogWarning("Cosmos DB not configured — skipping social count increment");
         return Task.CompletedTask;
     }
+
+    public Task<List<FactKeywordRecord>> GetFactsForPinterestAsync(int maxResults = 20, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — skipping Pinterest fact lookup");
+        return Task.FromResult(new List<FactKeywordRecord>());
+    }
+
+    public Task IncrementPinterestCountAsync(string recordId, string boardName, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — skipping Pinterest count increment");
+        return Task.CompletedTask;
+    }
 }

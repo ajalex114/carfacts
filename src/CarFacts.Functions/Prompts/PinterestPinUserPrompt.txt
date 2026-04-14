@@ -1,0 +1,17 @@
+Generate a Pinterest pin title and description for this car fact:
+
+Car: {car_model} ({year})
+Fact Title: {title}
+Keywords: {keywords}
+
+Respond in this exact JSON format:
+{
+  "title": "A catchy, specific pin title (max 100 chars)",
+  "description": "An informative description that makes people want to learn more. Include relevant keywords naturally. (max 500 chars)"
+}
+
+RULES:
+- The title MUST be unique and specific to this fact — do NOT reuse the fact title verbatim.
+- The description should give a teaser of the fact without revealing everything.
+- Write for a car enthusiast audience on Pinterest.
+- Response must be valid JSON only, no extra text.

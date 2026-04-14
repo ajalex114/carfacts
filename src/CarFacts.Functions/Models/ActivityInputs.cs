@@ -158,3 +158,54 @@ public sealed class IncrementSocialCountsInput
     public string PostUrl { get; set; } = string.Empty;
     public string Platform { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Input for the GeneratePinContent activity.
+/// </summary>
+public sealed class GeneratePinContentInput
+{
+    public string Title { get; set; } = string.Empty;
+    public string CarModel { get; set; } = string.Empty;
+    public int Year { get; set; }
+    public List<string> Keywords { get; set; } = [];
+}
+
+/// <summary>
+/// Result from GeneratePinContent activity.
+/// </summary>
+public sealed class PinContent
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Input for the CreatePinterestPin activity.
+/// </summary>
+public sealed class CreatePinterestPinInput
+{
+    public string BoardName { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Link { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Input for the UpdatePinterestTracking activity.
+/// </summary>
+public sealed class UpdatePinterestTrackingInput
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string BoardName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Result from the Pinterest fact selection activity.
+/// </summary>
+public sealed class PinterestFactSelection
+{
+    public FactKeywordRecord Fact { get; set; } = null!;
+    public string BoardName { get; set; } = string.Empty;
+    public bool IsRepost { get; set; }
+}

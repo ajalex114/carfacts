@@ -22,4 +22,7 @@ public static class SecretNames
     public const string RedditAppSecret = "Reddit-AppSecret";
     public const string RedditUsername = "Reddit-Username";
     public const string RedditPassword = "Reddit-Password";
+
+    // Pinterest
+    public const string PinterestAccessToken = "Pinterest-AccessToken";
 }

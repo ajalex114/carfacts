@@ -47,6 +47,13 @@ public sealed class FactKeywordRecord
     [JsonPropertyName("mediumCount")]
     public int MediumCount { get; set; }
 
+    [JsonPropertyName("pinterestCount")]
+    public int PinterestCount { get; set; }
+
+    /// <summary>Board names this fact has been pinned to (for repost routing).</summary>
+    [JsonPropertyName("pinterestBoards")]
+    public List<string> PinterestBoards { get; set; } = [];
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

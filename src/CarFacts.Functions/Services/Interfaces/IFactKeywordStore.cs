@@ -42,4 +42,16 @@ public interface IFactKeywordStore
     /// and backlinkCount for all records matching the given postUrl.
     /// </summary>
     Task IncrementSocialCountsAsync(string postUrl, string platform, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets facts with images, ordered by pinterestCount ascending (lowest first).
+    /// Used by the Pinterest posting pipeline to select the next fact to pin.
+    /// </summary>
+    Task<List<FactKeywordRecord>> GetFactsForPinterestAsync(int maxResults = 20, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Increments pinterestCount and backlinkCount for a specific fact record by ID,
+    /// and adds the board name to the pinterestBoards list.
+    /// </summary>
+    Task IncrementPinterestCountAsync(string recordId, string boardName, CancellationToken cancellationToken = default);
 }

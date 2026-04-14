@@ -103,4 +103,9 @@ public sealed class SocialMediaSettings
     public string RedditAppId { get; set; } = string.Empty;
     public string RedditUserAgent { get; set; } = "CarFacts/1.0";
     public List<string> RedditSubreddits { get; set; } = [];
+
+    // Pinterest
+    public bool PinterestEnabled { get; set; }
+    public string PinterestDefaultBoard { get; set; } = "Car Facts";
+    public string PinterestPostingCronExpression { get; set; } = "0 0 1,6,10,15,19,21 * * *";
 }
