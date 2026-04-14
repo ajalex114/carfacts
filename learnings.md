@@ -457,3 +457,112 @@ for (int attempt = 0; attempt <= maxRetries; attempt++)
 **Lesson:** WordPress.com free tier strips `<script>` tags, making JSON-LD structured data impossible. Use microdata (`itemprop`/`itemscope`) as a fallback. GEO (Generative Engine Optimization) is an emerging field — adding AI-friendly summaries is low-effort and future-proofs content.
 
 **File:** `src/CarFacts.Functions/Services/ContentFormatterService.cs` (AppendGeoHeader method)
+
+---
+
+## 8. Azure App Configuration Pitfalls
+
+### 8.1 App Configuration Provider Can Silently Fail
+
+**Failure:** Blog posts stopped publishing on April 13–14. `CreateDraftPostActivity` returned `404 (Not Found)` from WordPress API. Content generation worked fine.
+
+**Root cause:** `WordPress:SiteId` was stored *only* in Azure App Configuration. The App Configuration provider (`AddAzureAppConfiguration`) connected via `DefaultAzureCredential` and loaded settings at startup — but if the connection fails (network issue, transient auth failure, cold start timing), it **fails silently**. All `IOptions<T>` values revert to their C# defaults (empty strings, false, etc.). The WordPress API URL became `https://public-api.wordpress.com/rest/v1.1/sites//posts/new` → 404.
+
+**Fix:** Add all critical settings as Function App environment variables (`WordPress__SiteId`, `WordPress__PostStatus`, etc.) in addition to App Configuration. Environment variables serve as a reliable fallback and are always available.
+
+```bash
+az functionapp config appsettings set \
+  --name func-carfacts5 --resource-group rg-carfacts \
+  --settings "WordPress__SiteId=carfacts5.wordpress.com" \
+             "WordPress__PostStatus=publish" \
+             "WordPress__SkipImages=false"
+```
+
+**Lesson:** Never rely solely on Azure App Configuration for settings that are required for core functionality. Always duplicate critical settings in Function App environment variables. App Configuration is great for feature flags and non-critical overrides, but the startup connection can fail silently. The same issue was seen earlier with `SocialMedia__TwitterEnabled`.
+
+**Pattern:** For any `IOptions<T>` binding, if a property defaulting to empty/false would cause a runtime failure, that property **must** also exist in Function App settings.
+
+---
+
+### 8.2 IOptions Binding Doesn't Fail Loudly
+
+**Failure:** `SocialMedia:TwitterEnabled=true` was set in App Configuration, but `TwitterService.IsEnabled` returned `false`.
+
+**Root cause:** `IOptions<SocialMediaSettings>` snapshot is taken from the configuration providers registered at startup. If the App Configuration provider hasn't fully loaded by the time DI resolves the options, the value comes from environment variables only — where it didn't exist.
+
+**Fix:** Added `SocialMedia__TwitterEnabled=true` as a Function App setting. Both sources now provide the value, whichever loads first wins.
+
+**Lesson:** When using App Configuration with `IOptions<T>`, treat Function App settings as the primary source and App Configuration as a secondary/override layer. Don't assume App Configuration values will be available at the moment DI resolves options.
+
+---
+
+## 9. Twitter/X API Integration
+
+### 9.1 OAuth 1.0a Permission and Enrollment
+
+**Failure:** Multiple 403 errors when posting tweets:
+1. `"oauth1 app permissions"` — App only had Read permissions
+2. `"client-not-enrolled"` — App wasn't attached to a Project in the developer portal
+
+**Fix (multi-step):**
+1. Changed app permissions to "Read and Write" under OAuth 1.0a settings
+2. Attached app to a Project in the Twitter developer portal
+3. **Regenerated all 4 keys** (Consumer Key, Consumer Secret, Access Token, Access Token Secret) — this is critical after any permission change
+
+**Lesson:** After changing Twitter app permissions, you **must** regenerate all tokens. Old tokens retain the previous permission scope. The "client-not-enrolled" error means the app isn't inside a Project — a requirement for API v2 access.
+
+---
+
+### 9.2 Four Keys Must Be From the Same Regeneration
+
+**Failure:** 401 Unauthorized after updating individual keys at different times.
+
+**Root cause:** Twitter OAuth 1.0a requires all 4 keys (Consumer Key, Consumer Secret, Access Token, Access Token Secret) to form a valid set. If you regenerate the consumer key but keep old access tokens, the signature won't validate.
+
+**Fix:** Always regenerate all 4 keys together from the same app page, and update all 4 in Key Vault simultaneously.
+
+**Lesson:** Twitter API keys are a **set** — partial updates break authentication. When rotating credentials, update all 4 atomically.
+
+---
+
+## 10. JSON Serialization Gotchas
+
+### 10.1 System.Text.Json Is Case-Sensitive by Default
+
+**Failure:** `GenerateTweetFactsActivity` returned empty arrays (`[]`). The Durable Functions history showed "Redacted 2 characters" for the activity output.
+
+**Root cause:** `System.Text.Json.JsonSerializer.Deserialize<T>()` is **case-sensitive by default**. The LLM returns JSON with lowercase keys (`"text"`, `"hashtags"`, `"tweets"`), but the C# model properties use PascalCase (`Text`, `Hashtags`, `Tweets`). Every property deserialized to its default value (empty string, empty list).
+
+**Fix:** Added `PropertyNameCaseInsensitive = true` to `JsonSerializerOptions`:
+
+```csharp
+var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+var parsed = JsonSerializer.Deserialize<TweetFactsResponse>(cleaned, options);
+```
+
+**Alternative:** Use `[JsonPropertyName("text")]` attributes on each property, but `PropertyNameCaseInsensitive` is simpler when you don't control the JSON producer (LLM output).
+
+**Lesson:** When deserializing JSON from external sources (especially LLMs), always use `PropertyNameCaseInsensitive = true`. Unlike Newtonsoft.Json, System.Text.Json does NOT do case-insensitive matching by default. This is one of the most common migration pitfalls.
+
+**Files:** `GenerateTweetFactsActivity.cs`, `GenerateTweetLinkActivity.cs`
+
+---
+
+## 11. Prompt Engineering for Social Media
+
+### 11.1 Structure Beats Tone Direction
+
+**Problem:** Initial tweet prompts told the LLM to write "like a real person casually sharing something cool" with "TIL energy." The output was inconsistent — some tweets were great, others were generic filler.
+
+**Fix:** Replaced vague tone directions with an explicit 3-step structure:
+1. **Hook** — Start with a bold claim, surprising number, or unexpected detail
+2. **Fact** — Present it concisely and punchily
+3. **Context** — One sentence explaining why it matters
+
+Also: told the LLM to avoid hashtags and emojis *unless they genuinely add value* (instead of mandating 2–3 hashtags per tweet).
+
+**Result:** More consistent, higher-quality output. Every tweet follows the same rhythm, and the "why it matters" line adds depth that makes posts more shareable.
+
+**Lesson:** When prompting LLMs for structured content, give explicit structure (numbered steps) rather than just describing a tone. "Write like X" is ambiguous; "Start with Y, then Z, then W" is concrete. Also, telling the LLM to use something "only when it adds value" produces better results than either mandating or prohibiting it.
+
+**Files:** `TweetFactsSystemPrompt.txt`, `TweetFactsUserPrompt.txt`
