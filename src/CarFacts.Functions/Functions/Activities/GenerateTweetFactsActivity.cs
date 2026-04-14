@@ -35,7 +35,8 @@ public sealed class GenerateTweetFactsActivity
             ?? throw new InvalidOperationException("Empty AI response for tweet facts");
 
         var cleaned = CleanJson(content);
-        var parsed = JsonSerializer.Deserialize<TweetFactsResponse>(cleaned)
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var parsed = JsonSerializer.Deserialize<TweetFactsResponse>(cleaned, options)
             ?? throw new InvalidOperationException("Failed to deserialize tweet facts");
 
         _logger.LogInformation("Generated {Count} tweet facts", parsed.Tweets.Count);

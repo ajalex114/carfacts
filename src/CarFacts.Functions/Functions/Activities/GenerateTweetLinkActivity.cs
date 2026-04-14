@@ -69,7 +69,8 @@ public sealed class GenerateTweetLinkActivity
                 ?? throw new InvalidOperationException("Empty AI response for tweet link");
 
             var cleaned = CleanJson(content);
-            var parsed = JsonSerializer.Deserialize<TweetLinkJson>(cleaned)
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var parsed = JsonSerializer.Deserialize<TweetLinkJson>(cleaned, options)
                 ?? throw new InvalidOperationException("Failed to deserialize tweet link");
 
             _logger.LogInformation("Generated link tweet for: {Url}", post.PostUrl);
