@@ -14,6 +14,8 @@ public static class SecretNames
     public const string MediumIntegrationToken = "Medium-IntegrationToken";
 
     // Social media secrets
+    public const string TwitterConsumerKey = "Twitter-ConsumerKey";
+    public const string TwitterConsumerSecret = "Twitter-ConsumerSecret";
     public const string TwitterAccessToken = "Twitter-AccessToken";
     public const string TwitterAccessTokenSecret = "Twitter-AccessTokenSecret";
     public const string FacebookPageAccessToken = "Facebook-PageAccessToken";

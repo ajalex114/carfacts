@@ -53,8 +53,8 @@ public sealed class TwitterService : ISocialMediaService
 
         var payload = JsonSerializer.Serialize(new { text = tweetText });
 
-        var consumerKey = _settings.TwitterConsumerKey;
-        var consumerSecret = _settings.TwitterConsumerSecret;
+        var consumerKey = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerKey, cancellationToken);
+        var consumerSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerSecret, cancellationToken);
         var accessToken = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessToken, cancellationToken);
         var accessTokenSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessTokenSecret, cancellationToken);
 
@@ -82,8 +82,8 @@ public sealed class TwitterService : ISocialMediaService
 
         var payload = JsonSerializer.Serialize(new { text = content });
 
-        var consumerKey = _settings.TwitterConsumerKey;
-        var consumerSecret = _settings.TwitterConsumerSecret;
+        var consumerKey = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerKey, cancellationToken);
+        var consumerSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerSecret, cancellationToken);
         var accessToken = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessToken, cancellationToken);
         var accessTokenSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessTokenSecret, cancellationToken);
 

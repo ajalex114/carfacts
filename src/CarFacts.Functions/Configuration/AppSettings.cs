@@ -96,10 +96,6 @@ public sealed class SocialMediaSettings
     // Posting schedule (NCRONTAB: every 4 hours by default)
     public string PostingCronExpression { get; set; } = "0 0 */4 * * *";
 
-    // Twitter / X
-    public string TwitterConsumerKey { get; set; } = string.Empty;
-    public string TwitterConsumerSecret { get; set; } = string.Empty;
-
     // Facebook
     public List<string> FacebookPageIds { get; set; } = [];
 
