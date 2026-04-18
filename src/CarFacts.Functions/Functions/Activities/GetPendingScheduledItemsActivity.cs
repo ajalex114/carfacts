@@ -39,6 +39,7 @@ public sealed class GetPendingScheduledItemsActivity
                 Activity = i.Activity,
                 PostUrl = i.PostUrl,
                 PostTitle = i.PostTitle,
+                ReplyToTweetId = i.ReplyToTweetId,
                 ScheduledAtUtc = i.ScheduledAtUtc!.Value
             })
             .ToList();

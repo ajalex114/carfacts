@@ -429,6 +429,7 @@ public class ActivityTests
 
         var activity = new ExecuteScheduledPostActivity(
             publisher,
+            Mock.Of<ITwitterService>(),
             queueStore.Object,
             factStore.Object,
             Mock.Of<ILogger<ExecuteScheduledPostActivity>>());
@@ -439,6 +440,7 @@ public class ActivityTests
             Platform = "Twitter/X",
             Content = "Cool car fact #CarHistory",
             Type = "fact",
+            Activity = "post",
             ScheduledAtUtc = DateTime.UtcNow
         };
 
@@ -466,6 +468,7 @@ public class ActivityTests
 
         var activity = new ExecuteScheduledPostActivity(
             publisher,
+            Mock.Of<ITwitterService>(),
             queueStore.Object,
             factStore.Object,
             Mock.Of<ILogger<ExecuteScheduledPostActivity>>());
@@ -476,6 +479,7 @@ public class ActivityTests
             Platform = "Twitter/X",
             Content = "Check out this post https://example.com",
             Type = "link",
+            Activity = "post",
             PostUrl = "https://example.com/my-post",
             ScheduledAtUtc = DateTime.UtcNow
         };
@@ -486,6 +490,47 @@ public class ActivityTests
         mockService.Verify(s => s.PostRawAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         queueStore.Verify(s => s.DeleteItemAsync("link-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
         factStore.Verify(s => s.IncrementSocialCountsAsync("https://example.com/my-post", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteScheduledPost_ReplyItem_CallsReplyToTweet()
+    {
+        var factStore = new Mock<IFactKeywordStore>();
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        var twitterService = new Mock<ITwitterService>();
+
+        var mockService = new Mock<ISocialMediaService>();
+        mockService.Setup(s => s.PlatformName).Returns("Twitter/X");
+        mockService.Setup(s => s.IsEnabled).Returns(true);
+
+        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
+            new[] { mockService.Object },
+            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
+
+        var activity = new ExecuteScheduledPostActivity(
+            publisher,
+            twitterService.Object,
+            queueStore.Object,
+            factStore.Object,
+            Mock.Of<ILogger<ExecuteScheduledPostActivity>>());
+
+        var input = new ScheduledPostInput
+        {
+            ItemId = "reply-id",
+            Platform = "Twitter/X",
+            Content = "Nice ride!",
+            Type = "reply",
+            Activity = "reply",
+            ReplyToTweetId = "12345",
+            ScheduledAtUtc = DateTime.UtcNow
+        };
+
+        var result = await activity.Run(input);
+
+        result.Should().BeTrue();
+        twitterService.Verify(s => s.ReplyToTweetAsync("12345", "Nice ride!", It.IsAny<CancellationToken>()), Times.Once);
+        mockService.Verify(s => s.PostRawAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        queueStore.Verify(s => s.DeleteItemAsync("reply-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

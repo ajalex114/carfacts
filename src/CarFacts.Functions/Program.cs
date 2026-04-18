@@ -103,6 +103,7 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
     // Social media services
     services.AddHttpClient<TwitterService>();
     services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<TwitterService>());
+    services.AddSingleton<ITwitterService>(sp => sp.GetRequiredService<TwitterService>());
     services.AddHttpClient<FacebookService>();
     services.AddSingleton<ISocialMediaService>(sp => sp.GetRequiredService<FacebookService>());
     services.AddHttpClient<RedditService>();

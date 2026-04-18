@@ -191,7 +191,19 @@ public sealed class ScheduledPostInput
     public string Activity { get; set; } = "post";
     public string? PostUrl { get; set; }
     public string? PostTitle { get; set; }
+    public string? ReplyToTweetId { get; set; }
     public DateTime ScheduledAtUtc { get; set; }
+}
+
+/// <summary>
+/// Result from generating a tweet reply.
+/// </summary>
+public sealed class TweetReplyResult
+{
+    public string TweetId { get; set; } = string.Empty;
+    public string OriginalText { get; set; } = string.Empty;
+    public string ReplyText { get; set; } = string.Empty;
+    public string AuthorUsername { get; set; } = string.Empty;
 }
 
 /// <summary>

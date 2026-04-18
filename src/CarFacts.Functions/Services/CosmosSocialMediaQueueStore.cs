@@ -71,7 +71,7 @@ public sealed class CosmosSocialMediaQueueStore : ISocialMediaQueueStore
 
     public async Task<List<SocialMediaQueueItem>> GetPendingScheduledItemsAsync(CancellationToken cancellationToken = default)
     {
-        var query = new QueryDefinition("SELECT * FROM c WHERE c.scheduledAtUtc != null AND c.activity = 'post' ORDER BY c.scheduledAtUtc");
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.scheduledAtUtc != null AND c.activity IN ('post', 'reply') ORDER BY c.scheduledAtUtc");
 
         var items = new List<SocialMediaQueueItem>();
         using var iterator = _container.GetItemQueryIterator<SocialMediaQueueItem>(query);

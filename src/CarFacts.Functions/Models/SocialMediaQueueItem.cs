@@ -33,6 +33,10 @@ public sealed class SocialMediaQueueItem
     [JsonPropertyName("activity")]
     public string Activity { get; set; } = "post";
 
+    /// <summary>Only populated for "reply" activity — the tweet ID to reply to.</summary>
+    [JsonPropertyName("replyToTweetId")]
+    public string? ReplyToTweetId { get; set; }
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

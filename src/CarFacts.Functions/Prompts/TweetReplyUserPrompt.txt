@@ -1,0 +1,17 @@
+You just saw this tweet about cars:
+
+"{{ORIGINAL_TWEET}}"
+
+Write a reply that feels natural and human. Match the vibe — if the tweet is funny, be funny back. If it's a hot take, engage with the take. If it's informational, react genuinely.
+
+RULES:
+- Reply must be ≤280 characters
+- Sound like a real person, not a brand or bot
+- Stay on the topic of the original tweet
+- Don't be generic — reference something specific from the tweet
+- Length should match what feels natural: a single word, a short reaction, or 1-2 sentences
+
+Return ONLY valid JSON:
+{
+  "reply": "Your reply text here"
+}

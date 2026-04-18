@@ -45,6 +45,17 @@ public static class PromptLoader
         return template.Replace("{{POST_TITLE}}", postTitle).Replace("{{POST_URL}}", postUrl);
     }
 
+    public static string LoadTweetReplySystemPrompt()
+    {
+        return LoadResource("CarFacts.Functions.Prompts.TweetReplySystemPrompt.txt");
+    }
+
+    public static string LoadTweetReplyUserPrompt(string originalTweet)
+    {
+        var template = LoadResource("CarFacts.Functions.Prompts.TweetReplyUserPrompt.txt");
+        return template.Replace("{{ORIGINAL_TWEET}}", originalTweet);
+    }
+
     private static string LoadResource(string resourceName)
     {
         using var stream = Assembly.GetManifestResourceStream(resourceName)

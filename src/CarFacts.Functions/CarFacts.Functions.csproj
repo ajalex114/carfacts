@@ -43,5 +43,7 @@
     <EmbeddedResource Include="Prompts\TweetFactsSystemPrompt.txt" />
     <EmbeddedResource Include="Prompts\TweetFactsUserPrompt.txt" />
     <EmbeddedResource Include="Prompts\TweetLinkPrompt.txt" />
+    <EmbeddedResource Include="Prompts\TweetReplySystemPrompt.txt" />
+    <EmbeddedResource Include="Prompts\TweetReplyUserPrompt.txt" />
   </ItemGroup>
 </Project>
