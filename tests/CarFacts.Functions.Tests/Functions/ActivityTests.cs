@@ -411,46 +411,13 @@ public class ActivityTests
 
     #endregion
 
-    #region PostFromQueueActivity
+    #region ExecuteScheduledPostActivity
 
     [Fact]
-    public async Task PostFromQueue_WhenQueueEmpty_ReturnsFalse()
+    public async Task ExecuteScheduledPost_FactItem_PostsAndDeletes_NoSocialCountIncrement()
     {
-        var queueStore = new Mock<ISocialMediaQueueStore>();
-        queueStore.Setup(s => s.GetRandomItemAsync("Twitter/X", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((SocialMediaQueueItem?)null);
-
-        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
-            Enumerable.Empty<ISocialMediaService>(),
-            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
-
-        var activity = new PostFromQueueActivity(
-            queueStore.Object,
-            new Mock<IFactKeywordStore>().Object,
-            publisher,
-            Mock.Of<ILogger<PostFromQueueActivity>>());
-
-        var result = await activity.Run(new PostFromQueueInput { Platform = "Twitter/X" });
-
-        result.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task PostFromQueue_FactItem_PostsAndDeletes_NoSocialCountIncrement()
-    {
-        var item = new SocialMediaQueueItem
-        {
-            Id = "test-id",
-            Platform = "Twitter/X",
-            Content = "Cool car fact #CarHistory",
-            Type = "fact"
-        };
-
-        var queueStore = new Mock<ISocialMediaQueueStore>();
-        queueStore.Setup(s => s.GetRandomItemAsync("Twitter/X", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(item);
-
         var factStore = new Mock<IFactKeywordStore>();
+        var queueStore = new Mock<ISocialMediaQueueStore>();
 
         var mockService = new Mock<ISocialMediaService>();
         mockService.Setup(s => s.PlatformName).Returns("Twitter/X");
@@ -460,38 +427,34 @@ public class ActivityTests
             new[] { mockService.Object },
             Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
 
-        var activity = new PostFromQueueActivity(
+        var activity = new ExecuteScheduledPostActivity(
+            publisher,
             queueStore.Object,
             factStore.Object,
-            publisher,
-            Mock.Of<ILogger<PostFromQueueActivity>>());
+            Mock.Of<ILogger<ExecuteScheduledPostActivity>>());
 
-        var result = await activity.Run(new PostFromQueueInput { Platform = "Twitter/X" });
+        var input = new ScheduledPostInput
+        {
+            ItemId = "test-id",
+            Platform = "Twitter/X",
+            Content = "Cool car fact #CarHistory",
+            Type = "fact",
+            ScheduledAtUtc = DateTime.UtcNow
+        };
+
+        var result = await activity.Run(input);
 
         result.Should().BeTrue();
         mockService.Verify(s => s.PostRawAsync("Cool car fact #CarHistory", It.IsAny<CancellationToken>()), Times.Once);
         queueStore.Verify(s => s.DeleteItemAsync("test-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
-        // Fact type should NOT increment social counts
         factStore.Verify(s => s.IncrementSocialCountsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task PostFromQueue_LinkItem_PostsDeletesAndIncrementsCounts()
+    public async Task ExecuteScheduledPost_LinkItem_PostsDeletesAndIncrementsCounts()
     {
-        var item = new SocialMediaQueueItem
-        {
-            Id = "link-id",
-            Platform = "Twitter/X",
-            Content = "Check out this post https://example.com",
-            Type = "link",
-            PostUrl = "https://example.com/my-post"
-        };
-
-        var queueStore = new Mock<ISocialMediaQueueStore>();
-        queueStore.Setup(s => s.GetRandomItemAsync("Twitter/X", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(item);
-
         var factStore = new Mock<IFactKeywordStore>();
+        var queueStore = new Mock<ISocialMediaQueueStore>();
 
         var mockService = new Mock<ISocialMediaService>();
         mockService.Setup(s => s.PlatformName).Returns("Twitter/X");
@@ -501,18 +464,27 @@ public class ActivityTests
             new[] { mockService.Object },
             Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
 
-        var activity = new PostFromQueueActivity(
+        var activity = new ExecuteScheduledPostActivity(
+            publisher,
             queueStore.Object,
             factStore.Object,
-            publisher,
-            Mock.Of<ILogger<PostFromQueueActivity>>());
+            Mock.Of<ILogger<ExecuteScheduledPostActivity>>());
 
-        var result = await activity.Run(new PostFromQueueInput { Platform = "Twitter/X" });
+        var input = new ScheduledPostInput
+        {
+            ItemId = "link-id",
+            Platform = "Twitter/X",
+            Content = "Check out this post https://example.com",
+            Type = "link",
+            PostUrl = "https://example.com/my-post",
+            ScheduledAtUtc = DateTime.UtcNow
+        };
+
+        var result = await activity.Run(input);
 
         result.Should().BeTrue();
         mockService.Verify(s => s.PostRawAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         queueStore.Verify(s => s.DeleteItemAsync("link-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
-        // Link type SHOULD increment social counts
         factStore.Verify(s => s.IncrementSocialCountsAsync("https://example.com/my-post", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
     }
 

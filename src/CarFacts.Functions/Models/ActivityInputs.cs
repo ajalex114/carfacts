@@ -121,14 +121,6 @@ public sealed class TweetLinkResult
 }
 
 /// <summary>
-/// Input for the post-from-queue activity.
-/// </summary>
-public sealed class PostFromQueueInput
-{
-    public string Platform { get; set; } = string.Empty;
-}
-
-/// <summary>
 /// Settings for social media content generation counts.
 /// </summary>
 public sealed class SocialMediaContentSettings
