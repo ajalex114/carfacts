@@ -78,6 +78,10 @@ public sealed class SocialMediaOrchestratorInput
     public string PostTitle { get; set; } = string.Empty;
     public int FactsPerDay { get; set; } = 5;
     public int LinkPostsPerDay { get; set; } = 1;
+    public int LikesPerDayMin { get; set; } = 10;
+    public int LikesPerDayMax { get; set; } = 20;
+    public int RepliesPerDayMin { get; set; } = 3;
+    public int RepliesPerDayMax { get; set; } = 6;
 }
 
 /// <summary>
@@ -98,6 +102,10 @@ public sealed class StoreSocialQueueInput
     public List<TweetFactResult> Facts { get; set; } = [];
     public List<TweetLinkResult> LinkTweets { get; set; } = [];
     public List<string> EnabledPlatforms { get; set; } = [];
+    public int LikesPerDayMin { get; set; } = 10;
+    public int LikesPerDayMax { get; set; } = 20;
+    public int RepliesPerDayMin { get; set; } = 3;
+    public int RepliesPerDayMax { get; set; } = 6;
 }
 
 /// <summary>
@@ -127,6 +135,10 @@ public sealed class SocialMediaContentSettings
 {
     public int FactsPerDay { get; set; } = 5;
     public int LinkPostsPerDay { get; set; } = 1;
+    public int LikesPerDayMin { get; set; } = 10;
+    public int LikesPerDayMax { get; set; } = 20;
+    public int RepliesPerDayMin { get; set; } = 3;
+    public int RepliesPerDayMax { get; set; } = 6;
 }
 
 /// <summary>

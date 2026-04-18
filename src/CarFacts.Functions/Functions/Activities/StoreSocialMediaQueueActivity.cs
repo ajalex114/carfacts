@@ -81,10 +81,12 @@ public sealed class StoreSocialMediaQueueActivity
             }
         }
 
-        // Generate 3 reply placeholders interspersed among posting times (Twitter only)
+        // Generate reply placeholders interspersed among posting times (Twitter only)
         if (input.EnabledPlatforms.Any(p => p.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase)))
         {
-            const int replyCount = 3;
+            // Pick a random reply count from the configured range
+            var rng = new Random();
+            var replyCount = rng.Next(input.RepliesPerDayMin, input.RepliesPerDayMax + 1);
             var postTimes = items
                 .Where(i => i.Platform.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase) && i.ScheduledAtUtc.HasValue)
                 .Select(i => i.ScheduledAtUtc!.Value)
@@ -106,19 +108,13 @@ public sealed class StoreSocialMediaQueueActivity
             }
 
             _logger.LogInformation(
-                "Added {ReplyCount} reply slots interspersed at: {Times}",
-                replyTimes.Count,
+                "Added {ReplyCount} reply slots (range {Min}-{Max}) interspersed at: {Times}",
+                replyTimes.Count, input.RepliesPerDayMin, input.RepliesPerDayMax,
                 string.Join(", ", replyTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
 
-            // Generate 10 like placeholders spread across the day (Twitter only)
-            const int likeCount = 10;
-            var allExistingTimes = items
-                .Where(i => i.Platform.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase) && i.ScheduledAtUtc.HasValue)
-                .Select(i => i.ScheduledAtUtc!.Value)
-                .OrderBy(t => t)
-                .ToList();
-
-            var likeTimes = UsPostingScheduler.GenerateLikeSlots(DateTime.UtcNow, likeCount);
+            // Generate likes — random count from configured range, clubbed in groups of 2-3
+            var likeCount = rng.Next(input.LikesPerDayMin, input.LikesPerDayMax + 1);
+            var likeTimes = UsPostingScheduler.GenerateClubbedLikeSlots(DateTime.UtcNow, likeCount);
 
             foreach (var likeTime in likeTimes)
             {
@@ -133,8 +129,8 @@ public sealed class StoreSocialMediaQueueActivity
             }
 
             _logger.LogInformation(
-                "Added {LikeCount} like slots at: {Times}",
-                likeTimes.Count,
+                "Added {LikeCount} like slots (range {Min}-{Max}, clubbed) at: {Times}",
+                likeTimes.Count, input.LikesPerDayMin, input.LikesPerDayMax,
                 string.Join(", ", likeTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
         }
 

@@ -64,7 +64,11 @@ public static class SocialMediaOrchestrator
             {
                 Facts = facts,
                 LinkTweets = linkTweets,
-                EnabledPlatforms = enabledPlatforms
+                EnabledPlatforms = enabledPlatforms,
+                LikesPerDayMin = input.LikesPerDayMin,
+                LikesPerDayMax = input.LikesPerDayMax,
+                RepliesPerDayMin = input.RepliesPerDayMin,
+                RepliesPerDayMax = input.RepliesPerDayMax
             });
 
         logger.LogInformation("Social media content queued for {Count} platform(s): {Platforms}",

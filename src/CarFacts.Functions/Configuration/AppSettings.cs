@@ -86,13 +86,18 @@ public sealed class SocialMediaSettings
     public int FactsPerDay { get; set; } = 5;
     public int LinkPostsPerDay { get; set; } = 1;
 
-    // Posting schedule (NCRONTAB: every 4 hours by default)
-    public string PostingCronExpression { get; set; } = "0 0 */4 * * *";
+    // Twitter engagement: daily like range (random count picked each day)
+    public int LikesPerDayMin { get; set; } = 10;
+    public int LikesPerDayMax { get; set; } = 20;
 
-    // Facebook
+    // Twitter engagement: daily reply range (random count picked each day)
+    public int RepliesPerDayMin { get; set; } = 3;
+    public int RepliesPerDayMax { get; set; } = 6;
+
+    // Facebook (inactive — retained for service compatibility)
     public List<string> FacebookPageIds { get; set; } = [];
 
-    // Reddit
+    // Reddit (inactive — retained for service compatibility)
     public string RedditAppId { get; set; } = string.Empty;
     public string RedditUserAgent { get; set; } = "CarFacts/1.0";
     public List<string> RedditSubreddits { get; set; } = [];

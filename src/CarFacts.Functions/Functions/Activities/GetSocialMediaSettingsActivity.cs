@@ -21,7 +21,11 @@ public sealed class GetSocialMediaSettingsActivity
         return Task.FromResult(new SocialMediaContentSettings
         {
             FactsPerDay = _settings.FactsPerDay,
-            LinkPostsPerDay = _settings.LinkPostsPerDay
+            LinkPostsPerDay = _settings.LinkPostsPerDay,
+            LikesPerDayMin = _settings.LikesPerDayMin,
+            LikesPerDayMax = _settings.LikesPerDayMax,
+            RepliesPerDayMin = _settings.RepliesPerDayMin,
+            RepliesPerDayMax = _settings.RepliesPerDayMax
         });
     }
 }

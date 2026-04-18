@@ -171,7 +171,11 @@ public static class CarFactsOrchestrator
                 PostUrl = publishResult.PostUrl,
                 PostTitle = seo.MainTitle,
                 FactsPerDay = socialSettings.FactsPerDay,
-                LinkPostsPerDay = socialSettings.LinkPostsPerDay
+                LinkPostsPerDay = socialSettings.LinkPostsPerDay,
+                LikesPerDayMin = socialSettings.LikesPerDayMin,
+                LikesPerDayMax = socialSettings.LikesPerDayMax,
+                RepliesPerDayMin = socialSettings.RepliesPerDayMin,
+                RepliesPerDayMax = socialSettings.RepliesPerDayMax
             });
 
         var keywordTask = context.CallActivityAsync<bool>(

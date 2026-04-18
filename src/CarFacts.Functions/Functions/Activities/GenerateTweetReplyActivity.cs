@@ -21,14 +21,32 @@ public sealed class GenerateTweetReplyActivity
 
     private static readonly string[] SearchQueries =
     [
-        "cars -is:retweet -is:reply lang:en",
-        "automobile -is:retweet -is:reply lang:en",
-        "automotive -is:retweet -is:reply lang:en",
-        "car enthusiast -is:retweet -is:reply lang:en",
-        "muscle car -is:retweet -is:reply lang:en",
-        "sports car -is:retweet -is:reply lang:en",
-        "classic car -is:retweet -is:reply lang:en",
-        "electric vehicle -is:retweet -is:reply lang:en"
+        "Tesla -is:retweet -is:reply lang:en",
+        "BMW -is:retweet -is:reply lang:en",
+        "Mercedes -is:retweet -is:reply lang:en",
+        "Porsche -is:retweet -is:reply lang:en",
+        "Ferrari -is:retweet -is:reply lang:en",
+        "Lamborghini -is:retweet -is:reply lang:en",
+        "Ford Mustang -is:retweet -is:reply lang:en",
+        "Corvette -is:retweet -is:reply lang:en",
+        "Toyota Supra -is:retweet -is:reply lang:en",
+        "McLaren -is:retweet -is:reply lang:en",
+        "Audi -is:retweet -is:reply lang:en",
+        "Dodge Challenger -is:retweet -is:reply lang:en"
+    ];
+
+    // Car brands for relevance validation
+    private static readonly string[] CarBrands =
+    [
+        "tesla", "bmw", "mercedes", "porsche", "ferrari", "lamborghini", "ford",
+        "mustang", "corvette", "toyota", "mclaren", "audi", "bugatti", "dodge",
+        "rolls royce", "aston martin", "pagani", "honda", "nissan", "chevrolet",
+        "chevy", "lexus", "bentley", "maserati", "jaguar", "range rover",
+        "land rover", "subaru", "mazda", "hyundai", "kia", "volkswagen", "vw",
+        "volvo", "cadillac", "lincoln", "genesis", "acura", "infiniti",
+        "alfa romeo", "lotus", "koenigsegg", "rimac", "lucid", "rivian",
+        "shelby", "camaro", "hellcat", "supra", "gt-r", "gtr", "m3", "m4", "m5",
+        "rs6", "rs7", "amg", "911"
     ];
 
     public GenerateTweetReplyActivity(
@@ -49,36 +67,53 @@ public sealed class GenerateTweetReplyActivity
         var query = SearchQueries[Rng.Next(SearchQueries.Length)];
         _logger.LogInformation("Searching Twitter with query: {Query}", query);
 
-        var tweets = await _twitterService.SearchRecentTweetsAsync(query, maxResults: 50);
+        var tweets = await _twitterService.SearchRecentTweetsAsync(query, maxResults: 100);
 
-        // Filter candidates
+        // Filter candidates — high engagement + car brand relevance
         var candidates = tweets
             .Where(t => !string.IsNullOrWhiteSpace(t.Text))
-            .Where(t => t.Text.Length >= 20) // skip very short/low-signal tweets
+            .Where(t => t.Text.Length >= 20)
             .Where(t => !t.Text.StartsWith("RT ", StringComparison.OrdinalIgnoreCase))
-            .Where(t => !t.AuthorUsername.Equals("carfacts", StringComparison.OrdinalIgnoreCase)) // exclude own account
-            .Where(t => t.Text.Count(c => c == '@') <= 2) // skip mention-heavy tweets
-            .Where(t => t.Text.Count(c => c == '#') <= 3) // skip hashtag-heavy tweets
-            .Where(t => !t.Text.Contains("http://") && !t.Text.Contains("https://")) // skip promo tweets with links
-            .Where(t => t.ReplySettings == "everyone") // skip tweets with restricted replies
-            .ToList();
-
-        if (candidates.Count == 0)
-            throw new InvalidOperationException($"No suitable tweets found for query: {query}");
-
-        // Prefer tweets with above-average engagement
-        var avgEngagement = candidates.Average(t => t.TotalEngagement);
-        var engagedCandidates = candidates
-            .Where(t => t.TotalEngagement >= avgEngagement && t.TotalEngagement >= 2)
+            .Where(t => !t.AuthorUsername.Equals("carfacts", StringComparison.OrdinalIgnoreCase))
+            .Where(t => t.Text.Count(c => c == '@') <= 2)
+            .Where(t => t.Text.Count(c => c == '#') <= 3)
+            .Where(t => !t.Text.Contains("http://") && !t.Text.Contains("https://"))
+            .Where(t => t.ReplySettings == "everyone")
+            .Where(t => t.ImpressionCount >= 2000)
+            .Where(t => t.LikeCount >= 100)
+            .Where(t => t.RetweetCount >= 2)
+            .Where(t => t.ReplyCount >= 50)
+            .Where(t => ContainsCarBrand(t.Text))
             .OrderByDescending(t => t.TotalEngagement)
             .ToList();
 
         _logger.LogInformation(
-            "Reply candidates: {Total} total, avg engagement {Avg:F1}, {Engaged} above average",
-            candidates.Count, avgEngagement, engagedCandidates.Count);
+            "Reply candidates after engagement filter: {Count} out of {Total} tweets",
+            candidates.Count, tweets.Count);
 
-        // Fall back to all candidates if none meet the engagement bar
-        var pool = engagedCandidates.Count > 0 ? engagedCandidates : candidates;
+        // Relaxed fallback: lower engagement thresholds but still require car brand
+        if (candidates.Count == 0)
+        {
+            candidates = tweets
+                .Where(t => !string.IsNullOrWhiteSpace(t.Text))
+                .Where(t => t.Text.Length >= 20)
+                .Where(t => !t.Text.StartsWith("RT ", StringComparison.OrdinalIgnoreCase))
+                .Where(t => !t.AuthorUsername.Equals("carfacts", StringComparison.OrdinalIgnoreCase))
+                .Where(t => t.ReplySettings == "everyone")
+                .Where(t => t.LikeCount >= 20)
+                .Where(t => t.RetweetCount >= 1)
+                .Where(t => ContainsCarBrand(t.Text))
+                .OrderByDescending(t => t.TotalEngagement)
+                .ToList();
+
+            _logger.LogInformation("Relaxed reply filter yielded {Count} candidates", candidates.Count);
+        }
+
+        if (candidates.Count == 0)
+            throw new InvalidOperationException($"No high-engagement car tweets found for reply with query: {query}");
+
+        // Pick from top engaged candidates
+        var pool = candidates.Take(Math.Max(3, candidates.Count / 2)).ToList();
         var selected = pool[Rng.Next(pool.Count)];
         _logger.LogInformation("Selected tweet from @{Author}: {Text}", selected.AuthorUsername, selected.Text);
 
@@ -117,5 +152,11 @@ public sealed class GenerateTweetReplyActivity
     private sealed class TweetReplyJson
     {
         public string Reply { get; set; } = string.Empty;
+    }
+
+    private static bool ContainsCarBrand(string text)
+    {
+        var lower = text.ToLowerInvariant();
+        return CarBrands.Any(brand => lower.Contains(brand));
     }
 }

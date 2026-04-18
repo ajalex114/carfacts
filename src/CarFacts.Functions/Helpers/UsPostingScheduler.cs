@@ -145,18 +145,29 @@ public static class UsPostingScheduler
     }
 
     /// <summary>
-    /// Generates <paramref name="count"/> like slots spread across all US-friendly windows.
-    /// Likes are casual interactions, so they're evenly distributed with generous jitter.
+    /// Generates <paramref name="count"/> like slots clubbed in groups of 2-3, spread across US-friendly windows.
+    /// Each group fires at the same time (consecutive execution), with gaps between groups.
     /// </summary>
-    public static List<DateTime> GenerateLikeSlots(DateTime dateUtc, int count)
+    public static List<DateTime> GenerateClubbedLikeSlots(DateTime dateUtc, int count)
     {
         if (count <= 0) return [];
 
         var seed = dateUtc.Date.DayOfYear * 1000 + dateUtc.Date.Year + 13;
         var rng = new Random(seed);
 
-        var slots = new List<DateTime>();
-        for (var i = 0; i < count; i++)
+        // Determine how many groups and their sizes (2-3 per group)
+        var remaining = count;
+        var groupSizes = new List<int>();
+        while (remaining > 0)
+        {
+            var size = remaining >= 4 ? rng.Next(2, 4) : remaining; // 2 or 3
+            groupSizes.Add(size);
+            remaining -= size;
+        }
+
+        // Generate one time slot per group, spread across windows
+        var groupTimes = new List<DateTime>();
+        for (var i = 0; i < groupSizes.Count; i++)
         {
             var window = Windows[i % Windows.Length];
             var baseDate = dateUtc.Date;
@@ -177,16 +188,24 @@ public static class UsPostingScheduler
             if (time < windowStart.AddMinutes(-10)) time = windowStart;
             if (time > windowEnd.AddMinutes(10)) time = windowEnd;
 
-            slots.Add(time);
+            groupTimes.Add(time);
         }
 
-        // Sort and enforce minimum 10-min gap (likes can be closer together than posts)
-        slots.Sort();
-        for (var i = 1; i < slots.Count; i++)
+        // Sort groups chronologically and enforce minimum 15-min gap between groups
+        groupTimes.Sort();
+        for (var i = 1; i < groupTimes.Count; i++)
         {
-            if ((slots[i] - slots[i - 1]).TotalMinutes < 10)
+            if ((groupTimes[i] - groupTimes[i - 1]).TotalMinutes < 15)
+                groupTimes[i] = groupTimes[i - 1].AddMinutes(15 + rng.Next(0, 5));
+        }
+
+        // Expand groups: each like in a club is 30 seconds apart (consecutive execution)
+        var slots = new List<DateTime>();
+        for (var g = 0; g < groupSizes.Count; g++)
+        {
+            for (var j = 0; j < groupSizes[g]; j++)
             {
-                slots[i] = slots[i - 1].AddMinutes(10 + rng.Next(0, 5));
+                slots.Add(groupTimes[g].AddSeconds(j * 30));
             }
         }
 
