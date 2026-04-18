@@ -37,4 +37,13 @@ public sealed class TwitterSearchResult
     public string AuthorUsername { get; set; } = string.Empty;
     /// <summary>"everyone", "mentionedUsers", or "following" — indicates who can reply.</summary>
     public string ReplySettings { get; set; } = "everyone";
+
+    // Engagement metrics from public_metrics
+    public int LikeCount { get; set; }
+    public int RetweetCount { get; set; }
+    public int ReplyCount { get; set; }
+    public int ImpressionCount { get; set; }
+
+    /// <summary>Total engagement = likes + retweets + replies.</summary>
+    public int TotalEngagement => LikeCount + RetweetCount + ReplyCount;
 }

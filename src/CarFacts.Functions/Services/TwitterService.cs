@@ -119,7 +119,7 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
             ["max_results"] = maxResults.ToString(),
             ["expansions"] = "author_id",
             ["user.fields"] = "username",
-            ["tweet.fields"] = "author_id,text,reply_settings"
+            ["tweet.fields"] = "author_id,text,reply_settings,public_metrics"
         };
 
         var queryString = string.Join("&", queryParams.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
@@ -166,12 +166,25 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
 
                 var replySettings = tweet.TryGetProperty("reply_settings", out var rs) ? rs.GetString() ?? "everyone" : "everyone";
 
+                int likeCount = 0, retweetCount = 0, replyCount = 0, impressionCount = 0;
+                if (tweet.TryGetProperty("public_metrics", out var metrics))
+                {
+                    likeCount = metrics.TryGetProperty("like_count", out var lc) ? lc.GetInt32() : 0;
+                    retweetCount = metrics.TryGetProperty("retweet_count", out var rc) ? rc.GetInt32() : 0;
+                    replyCount = metrics.TryGetProperty("reply_count", out var rpc) ? rpc.GetInt32() : 0;
+                    impressionCount = metrics.TryGetProperty("impression_count", out var ic) ? ic.GetInt32() : 0;
+                }
+
                 results.Add(new TwitterSearchResult
                 {
                     TweetId = tweetId,
                     Text = text,
                     AuthorUsername = authorUsername ?? "",
-                    ReplySettings = replySettings
+                    ReplySettings = replySettings,
+                    LikeCount = likeCount,
+                    RetweetCount = retweetCount,
+                    ReplyCount = replyCount,
+                    ImpressionCount = impressionCount
                 });
             }
         }

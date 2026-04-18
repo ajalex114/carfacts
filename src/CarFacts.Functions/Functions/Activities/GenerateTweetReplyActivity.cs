@@ -49,7 +49,7 @@ public sealed class GenerateTweetReplyActivity
         var query = SearchQueries[Rng.Next(SearchQueries.Length)];
         _logger.LogInformation("Searching Twitter with query: {Query}", query);
 
-        var tweets = await _twitterService.SearchRecentTweetsAsync(query, maxResults: 20);
+        var tweets = await _twitterService.SearchRecentTweetsAsync(query, maxResults: 50);
 
         // Filter candidates
         var candidates = tweets
@@ -66,8 +66,20 @@ public sealed class GenerateTweetReplyActivity
         if (candidates.Count == 0)
             throw new InvalidOperationException($"No suitable tweets found for query: {query}");
 
-        // Pick a random candidate
-        var selected = candidates[Rng.Next(candidates.Count)];
+        // Prefer tweets with above-average engagement
+        var avgEngagement = candidates.Average(t => t.TotalEngagement);
+        var engagedCandidates = candidates
+            .Where(t => t.TotalEngagement >= avgEngagement && t.TotalEngagement >= 2)
+            .OrderByDescending(t => t.TotalEngagement)
+            .ToList();
+
+        _logger.LogInformation(
+            "Reply candidates: {Total} total, avg engagement {Avg:F1}, {Engaged} above average",
+            candidates.Count, avgEngagement, engagedCandidates.Count);
+
+        // Fall back to all candidates if none meet the engagement bar
+        var pool = engagedCandidates.Count > 0 ? engagedCandidates : candidates;
+        var selected = pool[Rng.Next(pool.Count)];
         _logger.LogInformation("Selected tweet from @{Author}: {Text}", selected.AuthorUsername, selected.Text);
 
         // Generate a reply using AI
