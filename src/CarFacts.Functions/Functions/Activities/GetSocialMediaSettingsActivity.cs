@@ -22,6 +22,8 @@ public sealed class GetSocialMediaSettingsActivity
         {
             FactsPerDay = _settings.FactsPerDay,
             LinkPostsPerDay = _settings.LinkPostsPerDay,
+            LikesEnabled = _settings.LikesEnabled,
+            RepliesEnabled = _settings.RepliesEnabled,
             LikesPerDayMin = _settings.LikesPerDayMin,
             LikesPerDayMax = _settings.LikesPerDayMax,
             RepliesPerDayMin = _settings.RepliesPerDayMin,

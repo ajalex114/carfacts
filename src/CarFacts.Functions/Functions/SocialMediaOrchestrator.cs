@@ -65,6 +65,8 @@ public static class SocialMediaOrchestrator
                 Facts = facts,
                 LinkTweets = linkTweets,
                 EnabledPlatforms = enabledPlatforms,
+                LikesEnabled = input.LikesEnabled,
+                RepliesEnabled = input.RepliesEnabled,
                 LikesPerDayMin = input.LikesPerDayMin,
                 LikesPerDayMax = input.LikesPerDayMax,
                 RepliesPerDayMin = input.RepliesPerDayMin,

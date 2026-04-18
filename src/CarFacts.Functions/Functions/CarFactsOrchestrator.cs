@@ -172,6 +172,8 @@ public static class CarFactsOrchestrator
                 PostTitle = seo.MainTitle,
                 FactsPerDay = socialSettings.FactsPerDay,
                 LinkPostsPerDay = socialSettings.LinkPostsPerDay,
+                LikesEnabled = socialSettings.LikesEnabled,
+                RepliesEnabled = socialSettings.RepliesEnabled,
                 LikesPerDayMin = socialSettings.LikesPerDayMin,
                 LikesPerDayMax = socialSettings.LikesPerDayMax,
                 RepliesPerDayMin = socialSettings.RepliesPerDayMin,

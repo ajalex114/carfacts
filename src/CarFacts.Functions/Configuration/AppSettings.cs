@@ -86,6 +86,10 @@ public sealed class SocialMediaSettings
     public int FactsPerDay { get; set; } = 5;
     public int LinkPostsPerDay { get; set; } = 1;
 
+    // Twitter engagement toggles
+    public bool LikesEnabled { get; set; } = true;
+    public bool RepliesEnabled { get; set; } = true;
+
     // Twitter engagement: daily like range (random count picked each day)
     public int LikesPerDayMin { get; set; } = 10;
     public int LikesPerDayMax { get; set; } = 20;

@@ -81,57 +81,70 @@ public sealed class StoreSocialMediaQueueActivity
             }
         }
 
-        // Generate reply placeholders interspersed among posting times (Twitter only)
+        // Generate reply and like placeholders for Twitter only, gated by config toggles
         if (input.EnabledPlatforms.Any(p => p.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase)))
         {
-            // Pick a random reply count from the configured range
             var rng = new Random();
-            var replyCount = rng.Next(input.RepliesPerDayMin, input.RepliesPerDayMax + 1);
-            var postTimes = items
-                .Where(i => i.Platform.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase) && i.ScheduledAtUtc.HasValue)
-                .Select(i => i.ScheduledAtUtc!.Value)
-                .OrderBy(t => t)
-                .ToList();
 
-            var replyTimes = UsPostingScheduler.GenerateInterspersedSlots(postTimes, replyCount);
-
-            foreach (var replyTime in replyTimes)
+            if (input.RepliesEnabled)
             {
-                items.Add(new SocialMediaQueueItem
+                var replyCount = rng.Next(input.RepliesPerDayMin, input.RepliesPerDayMax + 1);
+                var postTimes = items
+                    .Where(i => i.Platform.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase) && i.ScheduledAtUtc.HasValue)
+                    .Select(i => i.ScheduledAtUtc!.Value)
+                    .OrderBy(t => t)
+                    .ToList();
+
+                var replyTimes = UsPostingScheduler.GenerateInterspersedSlots(postTimes, replyCount);
+
+                foreach (var replyTime in replyTimes)
                 {
-                    Platform = "Twitter/X",
-                    Content = string.Empty, // filled at execution time
-                    Type = "reply",
-                    Activity = "reply",
-                    ScheduledAtUtc = replyTime
-                });
+                    items.Add(new SocialMediaQueueItem
+                    {
+                        Platform = "Twitter/X",
+                        Content = string.Empty,
+                        Type = "reply",
+                        Activity = "reply",
+                        ScheduledAtUtc = replyTime
+                    });
+                }
+
+                _logger.LogInformation(
+                    "Added {ReplyCount} reply slots (range {Min}-{Max}) interspersed at: {Times}",
+                    replyTimes.Count, input.RepliesPerDayMin, input.RepliesPerDayMax,
+                    string.Join(", ", replyTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
+            }
+            else
+            {
+                _logger.LogInformation("Replies disabled via configuration — skipping reply slots");
             }
 
-            _logger.LogInformation(
-                "Added {ReplyCount} reply slots (range {Min}-{Max}) interspersed at: {Times}",
-                replyTimes.Count, input.RepliesPerDayMin, input.RepliesPerDayMax,
-                string.Join(", ", replyTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
-
-            // Generate likes — random count from configured range, clubbed in groups of 2-3
-            var likeCount = rng.Next(input.LikesPerDayMin, input.LikesPerDayMax + 1);
-            var likeTimes = UsPostingScheduler.GenerateClubbedLikeSlots(DateTime.UtcNow, likeCount);
-
-            foreach (var likeTime in likeTimes)
+            if (input.LikesEnabled)
             {
-                items.Add(new SocialMediaQueueItem
-                {
-                    Platform = "Twitter/X",
-                    Content = string.Empty,
-                    Type = "like",
-                    Activity = "like",
-                    ScheduledAtUtc = likeTime
-                });
-            }
+                var likeCount = rng.Next(input.LikesPerDayMin, input.LikesPerDayMax + 1);
+                var likeTimes = UsPostingScheduler.GenerateClubbedLikeSlots(DateTime.UtcNow, likeCount);
 
-            _logger.LogInformation(
-                "Added {LikeCount} like slots (range {Min}-{Max}, clubbed) at: {Times}",
-                likeTimes.Count, input.LikesPerDayMin, input.LikesPerDayMax,
-                string.Join(", ", likeTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
+                foreach (var likeTime in likeTimes)
+                {
+                    items.Add(new SocialMediaQueueItem
+                    {
+                        Platform = "Twitter/X",
+                        Content = string.Empty,
+                        Type = "like",
+                        Activity = "like",
+                        ScheduledAtUtc = likeTime
+                    });
+                }
+
+                _logger.LogInformation(
+                    "Added {LikeCount} like slots (range {Min}-{Max}, clubbed) at: {Times}",
+                    likeTimes.Count, input.LikesPerDayMin, input.LikesPerDayMax,
+                    string.Join(", ", likeTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
+            }
+            else
+            {
+                _logger.LogInformation("Likes disabled via configuration — skipping like slots");
+            }
         }
 
         await _queueStore.AddItemsAsync(items);
