@@ -17,6 +17,7 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
 {
     private const string TweetEndpoint = "https://api.twitter.com/2/tweets";
     private const string SearchEndpoint = "https://api.twitter.com/2/tweets/search/recent";
+    private const string UsersEndpoint = "https://api.twitter.com/2/users/me";
 
     private readonly HttpClient _httpClient;
     private readonly SocialMediaSettings _settings;
@@ -118,7 +119,7 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
             ["max_results"] = maxResults.ToString(),
             ["expansions"] = "author_id",
             ["user.fields"] = "username",
-            ["tweet.fields"] = "author_id,text"
+            ["tweet.fields"] = "author_id,text,reply_settings"
         };
 
         var queryString = string.Join("&", queryParams.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
@@ -163,11 +164,14 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
                 var authorId = tweet.GetProperty("author_id").GetString() ?? "";
                 userMap.TryGetValue(authorId, out var authorUsername);
 
+                var replySettings = tweet.TryGetProperty("reply_settings", out var rs) ? rs.GetString() ?? "everyone" : "everyone";
+
                 results.Add(new TwitterSearchResult
                 {
                     TweetId = tweetId,
                     Text = text,
-                    AuthorUsername = authorUsername ?? ""
+                    AuthorUsername = authorUsername ?? "",
+                    ReplySettings = replySettings
                 });
             }
         }
@@ -207,6 +211,64 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
         response.EnsureSuccessStatusCode();
 
         _logger.LogInformation("Reply posted to tweet {TweetId}", tweetId);
+    }
+
+    public async Task<string> GetAuthenticatedUserIdAsync(CancellationToken cancellationToken = default)
+    {
+        var consumerKey = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerKey, cancellationToken);
+        var consumerSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerSecret, cancellationToken);
+        var accessToken = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessToken, cancellationToken);
+        var accessTokenSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessTokenSecret, cancellationToken);
+
+        var authHeader = BuildOAuth1Header("GET", UsersEndpoint, consumerKey, consumerSecret, accessToken, accessTokenSecret);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, UsersEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", authHeader);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Twitter get user failed ({Status}): {Body}", response.StatusCode, body);
+        }
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        var doc = JsonDocument.Parse(json);
+        var userId = doc.RootElement.GetProperty("data").GetProperty("id").GetString()
+            ?? throw new InvalidOperationException("Could not get authenticated user ID");
+
+        _logger.LogInformation("Authenticated Twitter user ID: {UserId}", userId);
+        return userId;
+    }
+
+    public async Task LikeTweetAsync(string tweetId, CancellationToken cancellationToken = default)
+    {
+        var userId = await GetAuthenticatedUserIdAsync(cancellationToken);
+        var likeEndpoint = $"https://api.twitter.com/2/users/{userId}/likes";
+
+        var payload = JsonSerializer.Serialize(new { tweet_id = tweetId });
+
+        var consumerKey = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerKey, cancellationToken);
+        var consumerSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerSecret, cancellationToken);
+        var accessToken = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessToken, cancellationToken);
+        var accessTokenSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessTokenSecret, cancellationToken);
+
+        var authHeader = BuildOAuth1Header("POST", likeEndpoint, consumerKey, consumerSecret, accessToken, accessTokenSecret);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, likeEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", authHeader);
+        request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Twitter like failed ({Status}): {Body}", response.StatusCode, body);
+        }
+        response.EnsureSuccessStatusCode();
+
+        _logger.LogInformation("Liked tweet {TweetId}", tweetId);
     }
 
     private static string BuildOAuth1Header(

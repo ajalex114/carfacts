@@ -15,6 +15,16 @@ public interface ITwitterService
     /// Posts a reply to a specific tweet using Twitter API v2.
     /// </summary>
     Task ReplyToTweetAsync(string tweetId, string content, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Likes a tweet on behalf of the authenticated user using Twitter API v2.
+    /// </summary>
+    Task LikeTweetAsync(string tweetId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the authenticated user's Twitter ID (needed for like/unlike endpoints).
+    /// </summary>
+    Task<string> GetAuthenticatedUserIdAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -25,4 +35,6 @@ public sealed class TwitterSearchResult
     public string TweetId { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
     public string AuthorUsername { get; set; } = string.Empty;
+    /// <summary>"everyone", "mentionedUsers", or "following" — indicates who can reply.</summary>
+    public string ReplySettings { get; set; } = "everyone";
 }

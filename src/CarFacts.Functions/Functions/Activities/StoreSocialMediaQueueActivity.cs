@@ -81,6 +81,63 @@ public sealed class StoreSocialMediaQueueActivity
             }
         }
 
+        // Generate 3 reply placeholders interspersed among posting times (Twitter only)
+        if (input.EnabledPlatforms.Any(p => p.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase)))
+        {
+            const int replyCount = 3;
+            var postTimes = items
+                .Where(i => i.Platform.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase) && i.ScheduledAtUtc.HasValue)
+                .Select(i => i.ScheduledAtUtc!.Value)
+                .OrderBy(t => t)
+                .ToList();
+
+            var replyTimes = UsPostingScheduler.GenerateInterspersedSlots(postTimes, replyCount);
+
+            foreach (var replyTime in replyTimes)
+            {
+                items.Add(new SocialMediaQueueItem
+                {
+                    Platform = "Twitter/X",
+                    Content = string.Empty, // filled at execution time
+                    Type = "reply",
+                    Activity = "reply",
+                    ScheduledAtUtc = replyTime
+                });
+            }
+
+            _logger.LogInformation(
+                "Added {ReplyCount} reply slots interspersed at: {Times}",
+                replyTimes.Count,
+                string.Join(", ", replyTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
+
+            // Generate 10 like placeholders spread across the day (Twitter only)
+            const int likeCount = 10;
+            var allExistingTimes = items
+                .Where(i => i.Platform.Equals("Twitter/X", StringComparison.OrdinalIgnoreCase) && i.ScheduledAtUtc.HasValue)
+                .Select(i => i.ScheduledAtUtc!.Value)
+                .OrderBy(t => t)
+                .ToList();
+
+            var likeTimes = UsPostingScheduler.GenerateLikeSlots(DateTime.UtcNow, likeCount);
+
+            foreach (var likeTime in likeTimes)
+            {
+                items.Add(new SocialMediaQueueItem
+                {
+                    Platform = "Twitter/X",
+                    Content = string.Empty,
+                    Type = "like",
+                    Activity = "like",
+                    ScheduledAtUtc = likeTime
+                });
+            }
+
+            _logger.LogInformation(
+                "Added {LikeCount} like slots at: {Times}",
+                likeTimes.Count,
+                string.Join(", ", likeTimes.Select(t => t.ToString("HH:mm 'UTC'"))));
+        }
+
         await _queueStore.AddItemsAsync(items);
 
         _logger.LogInformation("Stored {Count} total queue items with scheduled posting times", items.Count);

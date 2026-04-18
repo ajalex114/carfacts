@@ -60,6 +60,7 @@ public sealed class GenerateTweetReplyActivity
             .Where(t => t.Text.Count(c => c == '@') <= 2) // skip mention-heavy tweets
             .Where(t => t.Text.Count(c => c == '#') <= 3) // skip hashtag-heavy tweets
             .Where(t => !t.Text.Contains("http://") && !t.Text.Contains("https://")) // skip promo tweets with links
+            .Where(t => t.ReplySettings == "everyone") // skip tweets with restricted replies
             .ToList();
 
         if (candidates.Count == 0)

@@ -207,6 +207,16 @@ public sealed class TweetReplyResult
 }
 
 /// <summary>
+/// Result from finding a tweet to like.
+/// </summary>
+public sealed class TweetLikeResult
+{
+    public string TweetId { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    public string AuthorUsername { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Result from the Pinterest fact selection activity.
 /// </summary>
 public sealed class PinterestFactSelection

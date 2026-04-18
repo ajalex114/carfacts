@@ -75,4 +75,121 @@ public static class UsPostingScheduler
 
         return slots;
     }
+
+    /// <summary>
+    /// Generates <paramref name="count"/> time slots interspersed among existing sorted times.
+    /// Picks gaps between existing times and places slots roughly in the middle of each gap.
+    /// Ensures no two generated slots are consecutive (always separated by at least one existing post).
+    /// </summary>
+    public static List<DateTime> GenerateInterspersedSlots(List<DateTime> existingTimes, int count)
+    {
+        if (existingTimes.Count < 2 || count <= 0) return [];
+
+        var seed = existingTimes[0].DayOfYear * 1000 + existingTimes[0].Year + 7;
+        var rng = new Random(seed);
+
+        // Calculate gaps between consecutive existing posts
+        var gaps = new List<(int Index, double Minutes)>();
+        for (var i = 0; i < existingTimes.Count - 1; i++)
+        {
+            var gap = (existingTimes[i + 1] - existingTimes[i]).TotalMinutes;
+            if (gap >= 30) // only consider gaps large enough to fit a reply
+                gaps.Add((i, gap));
+        }
+
+        if (gaps.Count == 0) return [];
+
+        // Pick non-consecutive gap indices to ensure replies aren't back-to-back
+        var selectedGaps = new List<(int Index, double Minutes)>();
+        var usedIndices = new HashSet<int>();
+
+        // Shuffle gaps for randomness
+        var shuffled = gaps.OrderBy(_ => rng.Next()).ToList();
+
+        foreach (var gap in shuffled)
+        {
+            if (selectedGaps.Count >= count) break;
+
+            // Ensure this gap is not adjacent to an already-selected gap
+            if (usedIndices.Contains(gap.Index - 1) || usedIndices.Contains(gap.Index + 1))
+                continue;
+
+            selectedGaps.Add(gap);
+            usedIndices.Add(gap.Index);
+        }
+
+        // If we couldn't get enough non-consecutive, fill from remaining
+        if (selectedGaps.Count < count)
+        {
+            foreach (var gap in shuffled)
+            {
+                if (selectedGaps.Count >= count) break;
+                if (usedIndices.Contains(gap.Index)) continue;
+                selectedGaps.Add(gap);
+                usedIndices.Add(gap.Index);
+            }
+        }
+
+        // Generate times in the middle of each selected gap with some jitter
+        var result = new List<DateTime>();
+        foreach (var gap in selectedGaps)
+        {
+            var start = existingTimes[gap.Index];
+            var midpoint = start.AddMinutes(gap.Minutes / 2);
+            var jitter = rng.Next(-5, 6);
+            result.Add(midpoint.AddMinutes(jitter));
+        }
+
+        result.Sort();
+        return result;
+    }
+
+    /// <summary>
+    /// Generates <paramref name="count"/> like slots spread across all US-friendly windows.
+    /// Likes are casual interactions, so they're evenly distributed with generous jitter.
+    /// </summary>
+    public static List<DateTime> GenerateLikeSlots(DateTime dateUtc, int count)
+    {
+        if (count <= 0) return [];
+
+        var seed = dateUtc.Date.DayOfYear * 1000 + dateUtc.Date.Year + 13;
+        var rng = new Random(seed);
+
+        var slots = new List<DateTime>();
+        for (var i = 0; i < count; i++)
+        {
+            var window = Windows[i % Windows.Length];
+            var baseDate = dateUtc.Date;
+
+            if (window.StartHour < 3)
+                baseDate = baseDate.AddDays(1);
+
+            var windowStart = baseDate.AddHours(window.StartHour).AddMinutes(window.StartMin);
+            var windowEnd = baseDate.AddHours(window.EndHour).AddMinutes(window.EndMin);
+            var windowMinutes = (int)(windowEnd - windowStart).TotalMinutes;
+
+            var randomMinute = rng.Next(0, windowMinutes);
+            var time = windowStart.AddMinutes(randomMinute);
+
+            var jitter = rng.Next(-10, 11);
+            time = time.AddMinutes(jitter);
+
+            if (time < windowStart.AddMinutes(-10)) time = windowStart;
+            if (time > windowEnd.AddMinutes(10)) time = windowEnd;
+
+            slots.Add(time);
+        }
+
+        // Sort and enforce minimum 10-min gap (likes can be closer together than posts)
+        slots.Sort();
+        for (var i = 1; i < slots.Count; i++)
+        {
+            if ((slots[i] - slots[i - 1]).TotalMinutes < 10)
+            {
+                slots[i] = slots[i - 1].AddMinutes(10 + rng.Next(0, 5));
+            }
+        }
+
+        return slots;
+    }
 }

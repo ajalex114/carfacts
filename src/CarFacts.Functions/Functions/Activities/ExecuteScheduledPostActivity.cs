@@ -50,6 +50,11 @@ public sealed class ExecuteScheduledPostActivity
             await _twitterService.ReplyToTweetAsync(input.ReplyToTweetId, input.Content);
             _logger.LogInformation("Replied to tweet {TweetId} on {Platform}", input.ReplyToTweetId, input.Platform);
         }
+        else if (input.Activity == "like" && !string.IsNullOrEmpty(input.ReplyToTweetId))
+        {
+            await _twitterService.LikeTweetAsync(input.ReplyToTweetId);
+            _logger.LogInformation("Liked tweet {TweetId} on {Platform}", input.ReplyToTweetId, input.Platform);
+        }
         else
         {
             await _publisher.PublishRawAsync(input.Platform, input.Content);

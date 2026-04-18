@@ -375,11 +375,14 @@ public class ActivityTests
         var result = await activity.Run(input);
 
         result.Should().BeTrue();
-        // 2 facts + 1 link = 3 items for 1 platform
-        capturedItems.Should().HaveCount(3);
-        capturedItems.Count(i => i.Type == "fact").Should().Be(2);
-        capturedItems.Count(i => i.Type == "link").Should().Be(1);
+        // 2 facts + 1 link = 3 post items + up to 3 reply placeholders for Twitter/X
+        var postItems = capturedItems.Where(i => i.Activity == "post").ToList();
+        var replyItems = capturedItems.Where(i => i.Activity == "reply").ToList();
+        postItems.Should().HaveCount(3);
+        postItems.Count(i => i.Type == "fact").Should().Be(2);
+        postItems.Count(i => i.Type == "link").Should().Be(1);
         capturedItems.All(i => i.Platform == "Twitter/X").Should().BeTrue();
+        replyItems.All(i => i.Type == "reply" && i.ScheduledAtUtc.HasValue).Should().BeTrue();
     }
 
     [Fact]
@@ -404,9 +407,14 @@ public class ActivityTests
 
         await activity.Run(input);
 
-        // 1 fact × 2 platforms = 2 items
-        capturedItems.Should().HaveCount(2);
-        capturedItems.Select(i => i.Platform).Distinct().Should().HaveCount(2);
+        // 1 fact × 2 platforms = 2 post items + like items for Twitter/X
+        var postItems = capturedItems.Where(i => i.Activity == "post").ToList();
+        postItems.Should().HaveCount(2);
+        postItems.Select(i => i.Platform).Distinct().Should().HaveCount(2);
+
+        // Like items are only for Twitter/X
+        var likeItems = capturedItems.Where(i => i.Activity == "like").ToList();
+        likeItems.All(i => i.Platform == "Twitter/X").Should().BeTrue();
     }
 
     #endregion
@@ -531,6 +539,47 @@ public class ActivityTests
         twitterService.Verify(s => s.ReplyToTweetAsync("12345", "Nice ride!", It.IsAny<CancellationToken>()), Times.Once);
         mockService.Verify(s => s.PostRawAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         queueStore.Verify(s => s.DeleteItemAsync("reply-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteScheduledPost_LikeItem_CallsLikeTweet()
+    {
+        var factStore = new Mock<IFactKeywordStore>();
+        var queueStore = new Mock<ISocialMediaQueueStore>();
+        var twitterService = new Mock<ITwitterService>();
+
+        var mockService = new Mock<ISocialMediaService>();
+        mockService.Setup(s => s.PlatformName).Returns("Twitter/X");
+        mockService.Setup(s => s.IsEnabled).Returns(true);
+
+        var publisher = new CarFacts.Functions.Services.SocialMediaPublisher(
+            new[] { mockService.Object },
+            Mock.Of<ILogger<CarFacts.Functions.Services.SocialMediaPublisher>>());
+
+        var activity = new ExecuteScheduledPostActivity(
+            publisher,
+            twitterService.Object,
+            queueStore.Object,
+            factStore.Object,
+            Mock.Of<ILogger<ExecuteScheduledPostActivity>>());
+
+        var input = new ScheduledPostInput
+        {
+            ItemId = "like-id",
+            Platform = "Twitter/X",
+            Content = "Some tweet text",
+            Type = "like",
+            Activity = "like",
+            ReplyToTweetId = "67890",
+            ScheduledAtUtc = DateTime.UtcNow
+        };
+
+        var result = await activity.Run(input);
+
+        result.Should().BeTrue();
+        twitterService.Verify(s => s.LikeTweetAsync("67890", It.IsAny<CancellationToken>()), Times.Once);
+        mockService.Verify(s => s.PostRawAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        queueStore.Verify(s => s.DeleteItemAsync("like-id", "Twitter/X", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
