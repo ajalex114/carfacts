@@ -36,6 +36,7 @@ public sealed class GetPendingScheduledItemsActivity
                 Platform = i.Platform,
                 Content = i.Content,
                 Type = i.Type,
+                Activity = i.Activity,
                 PostUrl = i.PostUrl,
                 PostTitle = i.PostTitle,
                 ScheduledAtUtc = i.ScheduledAtUtc!.Value

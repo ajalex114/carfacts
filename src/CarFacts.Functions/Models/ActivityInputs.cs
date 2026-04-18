@@ -188,6 +188,7 @@ public sealed class ScheduledPostInput
     public string Platform { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string Type { get; set; } = "fact";
+    public string Activity { get; set; } = "post";
     public string? PostUrl { get; set; }
     public string? PostTitle { get; set; }
     public DateTime ScheduledAtUtc { get; set; }

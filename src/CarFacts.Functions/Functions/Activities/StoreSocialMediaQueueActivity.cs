@@ -48,6 +48,7 @@ public sealed class StoreSocialMediaQueueActivity
                     Platform = platform,
                     Content = tweetText,
                     Type = "fact",
+                    Activity = "post",
                     ScheduledAtUtc = scheduleIndex < schedule.Count ? schedule[scheduleIndex] : null
                 });
                 scheduleIndex++;
@@ -66,6 +67,7 @@ public sealed class StoreSocialMediaQueueActivity
                     PostUrl = linkTweet.PostUrl,
                     PostTitle = linkTweet.PostTitle,
                     Type = "link",
+                    Activity = "post",
                     ScheduledAtUtc = scheduleIndex < schedule.Count ? schedule[scheduleIndex] : null
                 });
                 scheduleIndex++;

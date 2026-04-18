@@ -29,6 +29,10 @@ public sealed class SocialMediaQueueItem
     [JsonPropertyName("type")]
     public string Type { get; set; } = "fact";
 
+    /// <summary>The action to perform, e.g. "post", "retweet", "engage".</summary>
+    [JsonPropertyName("activity")]
+    public string Activity { get; set; } = "post";
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
