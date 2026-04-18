@@ -1,15 +1,13 @@
-using CarFacts.Functions.Functions.Activities;
-using CarFacts.Functions.Models;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace CarFacts.Functions.Functions;
 
 /// <summary>
-/// Timer trigger that fires 6 times per day (every 4 hours).
-/// Each invocation posts one item from the social media queue per enabled platform.
+/// Timer trigger that fires once per day (using the posting cron expression).
+/// Starts the ScheduledPostingOrchestrator which reads all pending items from Cosmos
+/// and creates independent durable timer instances for each scheduled post.
 /// </summary>
 public sealed class SocialMediaPostingTrigger
 {
@@ -26,11 +24,12 @@ public sealed class SocialMediaPostingTrigger
         [DurableClient] DurableTaskClient durableClient,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Social media posting trigger fired at {Time}", DateTime.UtcNow);
+        _logger.LogInformation("Social media posting trigger fired at {Time} — starting scheduled posting orchestrator", DateTime.UtcNow);
 
         var instanceId = await durableClient.ScheduleNewOrchestrationInstanceAsync(
-            nameof(SocialMediaPostingOrchestrator));
+            nameof(ScheduledPostingOrchestrator),
+            cancellationToken);
 
-        _logger.LogInformation("Started posting orchestration: {InstanceId}", instanceId);
+        _logger.LogInformation("Started ScheduledPostingOrchestrator: {InstanceId}", instanceId);
     }
 }

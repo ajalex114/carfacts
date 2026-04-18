@@ -68,4 +68,21 @@ public sealed class CosmosSocialMediaQueueStore : ISocialMediaQueueStore
             _logger.LogWarning("Queue item {Id} already deleted for {Platform}", id, platform);
         }
     }
+
+    public async Task<List<SocialMediaQueueItem>> GetPendingScheduledItemsAsync(CancellationToken cancellationToken = default)
+    {
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.scheduledAtUtc != null ORDER BY c.scheduledAtUtc");
+
+        var items = new List<SocialMediaQueueItem>();
+        using var iterator = _container.GetItemQueryIterator<SocialMediaQueueItem>(query);
+
+        while (iterator.HasMoreResults)
+        {
+            var response = await iterator.ReadNextAsync(cancellationToken);
+            items.AddRange(response);
+        }
+
+        _logger.LogInformation("Found {Count} pending scheduled items in queue", items.Count);
+        return items;
+    }
 }

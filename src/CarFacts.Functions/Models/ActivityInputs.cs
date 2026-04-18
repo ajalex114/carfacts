@@ -188,6 +188,20 @@ public sealed class UpdatePinterestTrackingInput
 }
 
 /// <summary>
+/// Input for the ScheduledPostOrchestrator — contains a single queue item to post at its scheduled time.
+/// </summary>
+public sealed class ScheduledPostInput
+{
+    public string ItemId { get; set; } = string.Empty;
+    public string Platform { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string Type { get; set; } = "fact";
+    public string? PostUrl { get; set; }
+    public string? PostTitle { get; set; }
+    public DateTime ScheduledAtUtc { get; set; }
+}
+
+/// <summary>
 /// Result from the Pinterest fact selection activity.
 /// </summary>
 public sealed class PinterestFactSelection

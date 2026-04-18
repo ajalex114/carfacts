@@ -29,4 +29,10 @@ public sealed class NullSocialMediaQueueStore : ISocialMediaQueueStore
     {
         return Task.CompletedTask;
     }
+
+    public Task<List<SocialMediaQueueItem>> GetPendingScheduledItemsAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("Cosmos DB not configured — no scheduled items available");
+        return Task.FromResult(new List<SocialMediaQueueItem>());
+    }
 }

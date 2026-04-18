@@ -32,6 +32,13 @@ public sealed class SocialMediaQueueItem
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Suggested US-friendly posting time (UTC). Assigned during content generation
+    /// by distributing posts across US morning, lunch, evening, and dinner windows.
+    /// </summary>
+    [JsonPropertyName("scheduledAtUtc")]
+    public DateTime? ScheduledAtUtc { get; set; }
+
     /// <summary>TTL in seconds — 48 hours. Cosmos DB auto-deletes expired items.</summary>
     [JsonPropertyName("ttl")]
     public int Ttl { get; set; } = 172800;
