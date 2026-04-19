@@ -211,7 +211,8 @@ public static class CarFactsOrchestrator
                     MainTitle = seo.MainTitle,
                     PostUrl = publishResult.PostUrl,
                     Excerpt = seo.MetaDescription,
-                    FeaturedImageUrl = featuredImageUrl
+                    FeaturedImageUrl = featuredImageUrl,
+                    Media = uploadedMedia
                 },
                 new TaskOptions(WordPressRetryPolicy));
         }

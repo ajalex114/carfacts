@@ -254,4 +254,5 @@ public sealed class CreateWebStoryInput
     public string PostUrl { get; set; } = string.Empty;
     public string Excerpt { get; set; } = string.Empty;
     public string FeaturedImageUrl { get; set; } = string.Empty;
+    public List<UploadedMedia> Media { get; set; } = [];
 }

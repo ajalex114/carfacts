@@ -68,15 +68,20 @@ public sealed class CreateWebStoryActivity
     {
         var pages = new List<string>();
 
-        // Cover page
-        pages.Add(BuildCoverPage(input.MainTitle));
+        // Build image lookup by fact index
+        var imagesByFact = input.Media.ToDictionary(m => m.FactIndex, m => m.SourceUrl);
+
+        // Cover page — use first image if available
+        var coverImage = imagesByFact.GetValueOrDefault(0, string.Empty);
+        pages.Add(BuildCoverPage(input.MainTitle, coverImage));
 
         // One page per fact
         for (var i = 0; i < input.Facts.Count; i++)
         {
             var fact = input.Facts[i];
             var bgColor = PageColors[(i + 1) % PageColors.Length];
-            pages.Add(BuildFactPage(fact, i + 1, bgColor));
+            var imageUrl = imagesByFact.GetValueOrDefault(i, string.Empty);
+            pages.Add(BuildFactPage(fact, i + 1, bgColor, imageUrl));
         }
 
         // CTA page
@@ -99,42 +104,60 @@ public sealed class CreateWebStoryActivity
 </amp-story>";
     }
 
-    private static string BuildCoverPage(string title)
+    private static string BuildCoverPage(string title, string imageUrl)
     {
-        return $@"  <amp-story-page id=""cover"">
-    <amp-story-grid-layer template=""fill"">
-      <div style=""background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); width:100%; height:100%;""></div>
+        var backgroundLayer = !string.IsNullOrEmpty(imageUrl)
+            ? $@"    <amp-story-grid-layer template=""fill"">
+      <amp-img src=""{Escape(imageUrl)}"" width=""720"" height=""1280"" layout=""fill"" object-fit=""cover""></amp-img>
     </amp-story-grid-layer>
+    <amp-story-grid-layer template=""fill"">
+      <div style=""background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.6) 100%); width:100%; height:100%;""></div>
+    </amp-story-grid-layer>"
+            : $@"    <amp-story-grid-layer template=""fill"">
+      <div style=""background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); width:100%; height:100%;""></div>
+    </amp-story-grid-layer>";
+
+        return $@"  <amp-story-page id=""cover"">
+{backgroundLayer}
     <amp-story-grid-layer template=""thirds"">
       <div grid-area=""upper-third""></div>
       <div grid-area=""middle-third"" style=""display:flex; align-items:center; justify-content:center; padding:20px;"">
-        <h1 style=""color:{TextColor}; font-size:28px; text-align:center; line-height:1.3; font-family:sans-serif;"">{Escape(title)}</h1>
+        <h1 style=""color:{TextColor}; font-size:28px; text-align:center; line-height:1.3; font-family:sans-serif; text-shadow: 0 2px 8px rgba(0,0,0,0.7);"">{Escape(title)}</h1>
       </div>
       <div grid-area=""lower-third"" style=""display:flex; align-items:flex-end; justify-content:center; padding:20px;"">
-        <p style=""color:{AccentColor}; font-size:14px; font-family:sans-serif;"">{BrandingText}</p>
+        <p style=""color:{AccentColor}; font-size:14px; font-family:sans-serif; text-shadow: 0 1px 4px rgba(0,0,0,0.7);"">{BrandingText}</p>
       </div>
     </amp-story-grid-layer>
   </amp-story-page>";
     }
 
-    private static string BuildFactPage(CarFact fact, int factNumber, string bgColor)
+    private static string BuildFactPage(CarFact fact, int factNumber, string bgColor, string imageUrl)
     {
         var factText = TruncateText(fact.Fact, 280);
 
-        return $@"  <amp-story-page id=""fact{factNumber}"">
-    <amp-story-grid-layer template=""fill"">
-      <div style=""background: {bgColor}; width:100%; height:100%;""></div>
+        var backgroundLayer = !string.IsNullOrEmpty(imageUrl)
+            ? $@"    <amp-story-grid-layer template=""fill"">
+      <amp-img src=""{Escape(imageUrl)}"" width=""720"" height=""1280"" layout=""fill"" object-fit=""cover""></amp-img>
     </amp-story-grid-layer>
+    <amp-story-grid-layer template=""fill"">
+      <div style=""background: linear-gradient(0deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.65) 100%); width:100%; height:100%;""></div>
+    </amp-story-grid-layer>"
+            : $@"    <amp-story-grid-layer template=""fill"">
+      <div style=""background: {bgColor}; width:100%; height:100%;""></div>
+    </amp-story-grid-layer>";
+
+        return $@"  <amp-story-page id=""fact{factNumber}"">
+{backgroundLayer}
     <amp-story-grid-layer template=""thirds"">
       <div grid-area=""upper-third"" style=""display:flex; flex-direction:column; justify-content:flex-end; padding:20px;"">
-        <p style=""color:{AccentColor}; font-size:13px; font-family:sans-serif; margin:0;"">FACT #{factNumber}</p>
-        <h2 style=""color:{TextColor}; font-size:22px; font-family:sans-serif; margin:8px 0 0 0; line-height:1.2;"">{Escape(fact.CatchyTitle)}</h2>
+        <p style=""color:{AccentColor}; font-size:13px; font-family:sans-serif; margin:0; text-shadow: 0 1px 4px rgba(0,0,0,0.7);"">FACT #{factNumber}</p>
+        <h2 style=""color:{TextColor}; font-size:22px; font-family:sans-serif; margin:8px 0 0 0; line-height:1.2; text-shadow: 0 2px 6px rgba(0,0,0,0.7);"">{Escape(fact.CatchyTitle)}</h2>
       </div>
       <div grid-area=""middle-third"" style=""display:flex; align-items:flex-start; padding:0 20px;"">
-        <p style=""color:{SubtextColor}; font-size:16px; font-family:sans-serif; line-height:1.5;"">{Escape(factText)}</p>
+        <p style=""color:{SubtextColor}; font-size:16px; font-family:sans-serif; line-height:1.5; text-shadow: 0 1px 4px rgba(0,0,0,0.7);"">{Escape(factText)}</p>
       </div>
       <div grid-area=""lower-third"" style=""display:flex; align-items:flex-end; justify-content:space-between; padding:20px;"">
-        <p style=""color:#666666; font-size:12px; font-family:sans-serif;"">{Escape(fact.CarModel)} &middot; {fact.Year}</p>
+        <p style=""color:#aaaaaa; font-size:12px; font-family:sans-serif; text-shadow: 0 1px 3px rgba(0,0,0,0.7);"">{Escape(fact.CarModel)} &middot; {fact.Year}</p>
       </div>
     </amp-story-grid-layer>
   </amp-story-page>";
