@@ -566,3 +566,154 @@ Also: told the LLM to avoid hashtags and emojis *unless they genuinely add value
 **Lesson:** When prompting LLMs for structured content, give explicit structure (numbered steps) rather than just describing a tone. "Write like X" is ambiguous; "Start with Y, then Z, then W" is concrete. Also, telling the LLM to use something "only when it adds value" produces better results than either mandating or prohibiting it.
 
 **Files:** `TweetFactsSystemPrompt.txt`, `TweetFactsUserPrompt.txt`
+
+---
+
+## 12. WordPress.com API — Custom Post Types (Web Stories)
+
+### 12.1 wp-json REST API Returns 401 for Custom Post Types
+
+**Failure:** `POST /wp-json/web-stories/v1/web-story` returns `401 rest_cannot_create` even with a valid WordPress.com OAuth token.
+
+WordPress.com OAuth tokens work with the WordPress.com REST API (`public-api.wordpress.com`), but they **do not authenticate** against the WordPress.org REST API (`yourdomain.com/wp-json/`) for custom endpoints registered by plugins.
+
+**Fix:** Use the WordPress.com v1.1 API with `type: "web-story"`:
+```
+POST https://public-api.wordpress.com/rest/v1.1/sites/{siteId}/posts/new
+Body: { "title": "...", "content": "...", "status": "publish", "type": "web-story" }
+```
+
+**Lesson:** When working with WordPress.com-hosted sites, always use the WordPress.com REST API (`public-api.wordpress.com`) for CRUD operations — even for custom post types. The `type` field on the posts endpoint supports any registered post type including `web-story`.
+
+### 12.2 Web Story Payload Differs from Blog Post Payload
+
+**Failure:** Reusing the blog post payload builder (with `format: "standard"`, `comments_open: true`, etc.) for Web Stories caused unexpected rendering issues.
+
+**Fix:** Web Stories need a minimal, story-specific payload — only `title`, `content`, `excerpt`, `status`, and `type`. Do **not** include `format`, `comments_open`, `pings_open`, or `categories`.
+
+**Lesson:** When a service publishes multiple content types via the same API endpoint, build separate payload constructors for each type. Don't try to share DTO builders across fundamentally different content types.
+
+---
+
+## 13. AMP Story Markup Pitfalls
+
+### 13.1 HTML Encoding is Critical in AMP
+
+**Problem:** AMP stories use strict XML-like parsing. A single unescaped `&`, `<`, or `"` in dynamic content (fact text, car model names) breaks the entire story.
+
+**Fix:** Always use `WebUtility.HtmlEncode()` on every piece of dynamic content injected into AMP markup:
+```csharp
+private static string Escape(string text) => WebUtility.HtmlEncode(text);
+```
+
+**Lesson:** Treat AMP story content the same way you'd treat XML — all dynamic strings must be entity-encoded. This is especially important for auto-generated content where you can't predict what characters will appear.
+
+### 13.2 Image Backgrounds Need Dark Overlays for Text Readability
+
+**Problem:** Using generated images as full-bleed backgrounds made text unreadable — white text on light image areas disappeared.
+
+**Fix:** Layer a semi-transparent dark gradient over every image background:
+```html
+<amp-story-grid-layer template="fill">
+  <amp-img src="..." layout="fill" object-fit="cover"></amp-img>
+</amp-story-grid-layer>
+<amp-story-grid-layer template="fill">
+  <div style="background: linear-gradient(0deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.65) 100%);
+       width:100%; height:100%;"></div>
+</amp-story-grid-layer>
+```
+
+Also add `text-shadow` to all text elements for additional contrast.
+
+**Lesson:** When overlaying text on dynamic/unknown images, always use both a gradient overlay AND text-shadow. The gradient ensures minimum contrast, and the shadow handles edge cases where the gradient alone isn't enough.
+
+### 13.3 CTA Links Use amp-story-page-outlink (Not Plain Anchors)
+
+**Problem:** Plain `<a href>` links inside AMP story pages don't work — AMP stories consume all tap/swipe events for navigation.
+
+**Fix:** Use the dedicated outlink element:
+```html
+<amp-story-page-outlink layout="nodisplay">
+  <a href="https://yourdomain.com/post-url">Read More</a>
+</amp-story-page-outlink>
+```
+
+**Lesson:** AMP stories have their own interaction model. Standard HTML patterns (links, buttons) don't work as expected. Always check the AMP story component docs for the correct element.
+
+---
+
+## 14. Twitter/X API Dashboard Metrics
+
+### 14.1 Dashboard "Posts" Count ≠ Actual Tweets
+
+**Confusion:** Twitter developer dashboard showed 640 "posts" but the account only had ~50 actual tweets.
+
+**Investigation:** Queried App Insights for all Twitter API calls — found 173 total API calls tracked (53 successful posts, 85 duplicate 403s, retries, searches, likes, user lookups). Called `GET /2/users/me` with `user.fields=public_metrics` — actual `tweet_count` was **50**.
+
+**Conclusion:** The 640 number on the developer dashboard is the **monthly API request usage counter** (all endpoints combined), not the number of tweets posted.
+
+**Lesson:** Don't confuse Twitter's developer portal "usage" metrics with actual content metrics. The dashboard counts every API request (GET, POST, searches, user lookups, failed requests) toward the monthly cap. To get actual tweet count, query the user's `public_metrics`.
+
+---
+
+## 15. Durable Functions — Parallel Best-Effort Tasks
+
+### 15.1 Pattern for Non-Blocking Parallel Work
+
+When you have multiple post-publish tasks that should run in parallel and not block the pipeline if they fail:
+
+```csharp
+// Start all tasks
+var socialTask = context.CallSubOrchestratorAsync(...);
+var keywordTask = context.CallActivityAsync<bool>(...);
+var webStoryTask = context.CallActivityAsync<WordPressPostResult>(...);
+
+// Await each with try-catch (non-blocking)
+try { await socialTask; }
+catch (Exception ex) { logger.LogWarning("Social failed: {Msg}", ex.Message); }
+
+try { await keywordTask; }
+catch (Exception ex) { logger.LogWarning("Keywords failed: {Msg}", ex.Message); }
+
+try { await webStoryTask; }
+catch (Exception ex) { logger.LogWarning("Web Story failed: {Msg}", ex.Message); }
+```
+
+**Lesson:** Start all independent tasks before awaiting any of them. Wrap each `await` in its own try-catch so one failure doesn't cancel the others. This is the standard Durable Functions pattern for best-effort parallel work.
+
+### 15.2 Config Checks Must Be Activities (Not Direct Reads)
+
+**Problem:** Orchestrator functions are replayed — you can't read `IOptions<T>` or config values directly in the orchestrator because they aren't deterministic across replays.
+
+**Fix:** Create a small activity (e.g., `GetWebStoriesEnabledActivity`) that reads the config and returns a simple bool. Call it from the orchestrator:
+```csharp
+var enabled = await context.CallActivityAsync<bool>(
+    nameof(GetWebStoriesEnabledActivity), "check");
+```
+
+**Lesson:** In Durable Functions, all external state reads (config, DB, APIs) must go through activities. The orchestrator itself must only contain deterministic logic and activity/sub-orchestrator calls.
+
+---
+
+## 16. App Insights Query Gotchas
+
+### 16.1 Telemetry Ingestion Delay
+
+**Problem:** After triggering a function, App Insights queries return empty results for 3-10 minutes.
+
+App Insights has an ingestion pipeline with batching and buffering. Telemetry doesn't appear instantly — typical delay is 2-5 minutes, but can be up to 10 minutes during high load.
+
+**Workaround:** Use `ago(15m)` or `ago(30m)` windows when debugging recent runs. Don't assume empty results mean the function didn't execute.
+
+### 16.2 The `-o table` Format Returns Empty for Some Queries
+
+**Problem:** `az monitor app-insights query ... -o table` sometimes returns blank output even when data exists.
+
+**Fix:** Use `-o json` and parse manually. The JSON output reliably includes all rows:
+```powershell
+$result = az monitor app-insights query ... -o json 2>$null
+$data = $result | ConvertFrom-Json
+foreach ($row in $data.tables[0].rows) { "$($row[0])  $($row[1])" }
+```
+
+**Lesson:** Always use JSON output for programmatic App Insights queries. The table formatter has edge cases where it silently drops results.
