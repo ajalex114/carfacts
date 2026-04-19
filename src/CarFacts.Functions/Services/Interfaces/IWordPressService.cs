@@ -10,4 +10,5 @@ public interface IWordPressService
     Task<WordPressPostResult> CreateDraftPostAsync(string title, CancellationToken cancellationToken = default);
     Task<WordPressPostResult> UpdateAndPublishPostAsync(int postId, string title, string htmlContent, string excerpt, int featuredMediaId, string seoKeywords, string metaDescription, CancellationToken cancellationToken = default);
     Task AssociateMediaWithPostAsync(List<UploadedMedia> media, int postId, CancellationToken cancellationToken = default);
+    Task<WordPressPostResult> CreateWebStoryAsync(string title, string content, string excerpt, CancellationToken cancellationToken = default);
 }

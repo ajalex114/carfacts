@@ -195,11 +195,42 @@ public static class CarFactsOrchestrator
             },
             new TaskOptions(WordPressRetryPolicy));
 
+        // Step 8: Web Story creation (best-effort, parallel)
+        Task<WordPressPostResult>? webStoryTask = null;
+        var webStoriesEnabled = await context.CallActivityAsync<bool>(
+            nameof(GetWebStoriesEnabledActivity),
+            "check");
+        if (webStoriesEnabled)
+        {
+            var featuredImageUrl = uploadedMedia.Count > 0 ? uploadedMedia[0].SourceUrl : string.Empty;
+            webStoryTask = context.CallActivityAsync<WordPressPostResult>(
+                nameof(CreateWebStoryActivity),
+                new CreateWebStoryInput
+                {
+                    Facts = content.Facts,
+                    MainTitle = seo.MainTitle,
+                    PostUrl = publishResult.PostUrl,
+                    Excerpt = seo.MetaDescription,
+                    FeaturedImageUrl = featuredImageUrl
+                },
+                new TaskOptions(WordPressRetryPolicy));
+        }
+
         try { await socialTask; }
         catch (Exception ex) { logger.LogWarning("Social media queue generation failed (non-blocking): {Message}", ex.Message); }
 
         try { await keywordTask; }
         catch (Exception ex) { logger.LogWarning("Keyword storage failed (non-blocking): {Message}", ex.Message); }
+
+        if (webStoryTask != null)
+        {
+            try
+            {
+                var storyResult = await webStoryTask;
+                logger.LogInformation("Web Story published: {StoryUrl}", storyResult.PostUrl);
+            }
+            catch (Exception ex) { logger.LogWarning("Web Story creation failed (non-blocking): {Message}", ex.Message); }
+        }
 
         logger.LogInformation("CarFacts pipeline complete for {Date}: {PostUrl}", todayDate, publishResult.PostUrl);
         return publishResult.PostUrl;

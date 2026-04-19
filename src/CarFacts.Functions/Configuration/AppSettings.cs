@@ -73,6 +73,15 @@ public sealed class CosmosDbSettings
     public string ContainerName { get; set; } = "fact-keywords";
 }
 
+public sealed class WebStoriesSettings
+{
+    public const string SectionName = "WebStories";
+
+    public bool Enabled { get; set; } = true;
+    public string PublisherName { get; set; } = "Car Facts Daily";
+    public string PublisherLogoUrl { get; set; } = string.Empty;
+}
+
 public sealed class SocialMediaSettings
 {
     public const string SectionName = "SocialMedia";

@@ -200,6 +200,46 @@ public sealed class WordPressService : IWordPressService
         return await UploadSingleImageInternalAsync(authHeader, image, fact, parentPostId, cancellationToken);
     }
 
+    public async Task<WordPressPostResult> CreateWebStoryAsync(
+        string title,
+        string content,
+        string excerpt,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Creating Web Story: {Title}", title);
+
+        var authHeader = await BuildAuthHeaderAsync(cancellationToken);
+        var siteId = GetSiteId();
+        var url = $"{ApiBase}/{siteId}/posts/new";
+
+        var postBody = new
+        {
+            title,
+            content,
+            excerpt,
+            status = _settings.PostStatus,
+            type = "web-story"
+        };
+        var jsonPayload = JsonSerializer.Serialize(postBody);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Authorization = authHeader;
+        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Web Story creation failed ({Status}): {Body}", response.StatusCode, errorBody);
+        }
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        var result = ParsePostResponse(responseJson);
+        _logger.LogInformation("Web Story published: ID={PostId}, URL={PostUrl}", result.PostId, result.PostUrl);
+        return result;
+    }
+
     private async Task<UploadedMedia> UploadSingleImageInternalAsync(
         AuthenticationHeaderValue authHeader,
         GeneratedImage image,

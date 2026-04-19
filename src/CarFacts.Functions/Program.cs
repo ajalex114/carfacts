@@ -67,6 +67,7 @@ static void RegisterSettings(HostBuilderContext context, IServiceCollection serv
     services.Configure<StabilityAISettings>(config.GetSection(StabilityAISettings.SectionName));
     services.Configure<TogetherAISettings>(config.GetSection(TogetherAISettings.SectionName));
     services.Configure<WordPressSettings>(config.GetSection(WordPressSettings.SectionName));
+    services.Configure<WebStoriesSettings>(config.GetSection(WebStoriesSettings.SectionName));
     services.Configure<ScheduleSettings>(config.GetSection(ScheduleSettings.SectionName));
     services.Configure<SocialMediaSettings>(config.GetSection(SocialMediaSettings.SectionName));
     services.Configure<CosmosDbSettings>(config.GetSection(CosmosDbSettings.SectionName));

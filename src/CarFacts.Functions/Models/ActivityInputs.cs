@@ -243,3 +243,15 @@ public sealed class PinterestFactSelection
     public string BoardName { get; set; } = string.Empty;
     public bool IsRepost { get; set; }
 }
+
+/// <summary>
+/// Input for the Web Story creation activity.
+/// </summary>
+public sealed class CreateWebStoryInput
+{
+    public List<CarFact> Facts { get; set; } = [];
+    public string MainTitle { get; set; } = string.Empty;
+    public string PostUrl { get; set; } = string.Empty;
+    public string Excerpt { get; set; } = string.Empty;
+    public string FeaturedImageUrl { get; set; } = string.Empty;
+}
