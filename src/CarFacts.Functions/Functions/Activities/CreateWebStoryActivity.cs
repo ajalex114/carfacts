@@ -15,6 +15,7 @@ namespace CarFacts.Functions.Functions.Activities;
 public sealed class CreateWebStoryActivity
 {
     private readonly IWordPressService _wordPressService;
+    private readonly ISecretProvider _secretProvider;
     private readonly WebStoriesSettings _settings;
     private readonly ILogger<CreateWebStoryActivity> _logger;
 
@@ -37,10 +38,12 @@ public sealed class CreateWebStoryActivity
 
     public CreateWebStoryActivity(
         IWordPressService wordPressService,
+        ISecretProvider secretProvider,
         IOptions<WebStoriesSettings> settings,
         ILogger<CreateWebStoryActivity> logger)
     {
         _wordPressService = wordPressService;
+        _secretProvider = secretProvider;
         _settings = settings.Value;
         _logger = logger;
     }
@@ -52,7 +55,10 @@ public sealed class CreateWebStoryActivity
         _logger.LogInformation("Creating Web Story for: {Title} with {FactCount} facts",
             input.MainTitle, input.Facts.Count);
 
-        var storyContent = BuildStoryMarkup(input);
+        var adSenseClientId = await GetOptionalSecretAsync(SecretNames.AdSenseClientId);
+        var adSenseSlotId = await GetOptionalSecretAsync(SecretNames.AdSenseSlotId);
+
+        var storyContent = BuildStoryMarkup(input, adSenseClientId, adSenseSlotId);
         var excerpt = TruncateText(input.Excerpt, 200);
 
         var result = await _wordPressService.CreateWebStoryAsync(
@@ -64,7 +70,19 @@ public sealed class CreateWebStoryActivity
         return result;
     }
 
-    private string BuildStoryMarkup(CreateWebStoryInput input)
+    private async Task<string> GetOptionalSecretAsync(string secretName)
+    {
+        try
+        {
+            return await _secretProvider.GetSecretAsync(secretName);
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private string BuildStoryMarkup(CreateWebStoryInput input, string adSenseClientId, string adSenseSlotId)
     {
         var pages = new List<string>();
 
@@ -95,12 +113,14 @@ public sealed class CreateWebStoryActivity
             ? input.FeaturedImageUrl
             : publisherLogo;
 
+        var autoAdsBlock = BuildAutoAdsBlock(adSenseClientId, adSenseSlotId);
+
         return $@"<amp-story standalone
   title=""{Escape(input.MainTitle)}""
   publisher=""{Escape(_settings.PublisherName)}""
   publisher-logo-src=""{Escape(publisherLogo)}""
   poster-portrait-src=""{Escape(posterImage)}"">
-{string.Join("\n", pages)}
+{autoAdsBlock}{string.Join("\n", pages)}
 </amp-story>";
     }
 
@@ -183,6 +203,30 @@ public sealed class CreateWebStoryActivity
       <a href=""{Escape(postUrl)}"">Read More</a>
     </amp-story-page-outlink>
   </amp-story-page>";
+    }
+
+    private static string BuildAutoAdsBlock(string adSenseClientId, string adSenseSlotId)
+    {
+        if (string.IsNullOrEmpty(adSenseClientId))
+            return string.Empty;
+
+        var adAttributes = !string.IsNullOrEmpty(adSenseSlotId)
+            ? $@"        ""type"": ""adsense"",
+        ""data-ad-client"": ""{Escape(adSenseClientId)}"",
+        ""data-ad-slot"": ""{Escape(adSenseSlotId)}"""
+            : $@"        ""type"": ""adsense"",
+        ""data-ad-client"": ""{Escape(adSenseClientId)}""";
+
+        return $@"  <amp-story-auto-ads>
+    <script type=""application/json"">
+    {{
+      ""ad-attributes"": {{
+{adAttributes}
+      }}
+    }}
+    </script>
+  </amp-story-auto-ads>
+";
     }
 
     private static string Escape(string text)

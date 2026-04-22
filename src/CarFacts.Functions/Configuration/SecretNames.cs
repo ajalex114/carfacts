@@ -23,4 +23,8 @@ public static class SecretNames
 
     // Pinterest
     public const string PinterestAccessToken = "Pinterest-AccessToken";
+
+    // AdSense
+    public const string AdSenseClientId = "AdSense-ClientId";
+    public const string AdSenseSlotId = "AdSense-SlotId";
 }
