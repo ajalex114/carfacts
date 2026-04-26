@@ -56,7 +56,8 @@ public class VideoOrchestrator
                     VisionApiKey:               input.VisionApiKey,
                     ShotType:                   seg.ShotType,
                     FallbackQuery:              seg.FallbackQuery,
-                    BrandOnlyFallback:          seg.BrandOnlyFallback)));
+                    BrandOnlyFallback:          seg.BrandOnlyFallback,
+                    ProxyUrl:                   input.ProxyUrl)));
 
         var clipResults = await Task.WhenAll(clipTasks);
         var orderedResults = clipResults.OrderBy(r => r.Index).ToList();
@@ -105,4 +106,5 @@ public record OrchestratorInput(
     string PexelsApiKey,
     string YouTubeApiKey,
     string VisionEndpoint,
-    string VisionApiKey);
+    string VisionApiKey,
+    string? ProxyUrl = null);

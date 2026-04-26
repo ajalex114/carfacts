@@ -49,11 +49,13 @@ public class HttpStartFunction(
         var youtubeKey  = configuration["YouTube:ApiKey"] ?? "";       // optional — falls back to Pexels if empty
         var visionEp    = configuration["Vision:Endpoint"] ?? "";      // optional — skips CV check if empty
         var visionKey   = configuration["Vision:ApiKey"] ?? "";
+        var proxyUrl    = configuration["YouTube:ProxyUrl"] ?? "";     // optional — residential proxy for datacenter IP bypass
 
         // Schedule orchestration — Durable returns the instanceId which becomes our jobId
         var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
             nameof(VideoOrchestrator),
-            new OrchestratorInput(jobId, fact, storageConn, pexelsKey, youtubeKey, visionEp, visionKey));
+            new OrchestratorInput(jobId, fact, storageConn, pexelsKey, youtubeKey, visionEp, visionKey,
+                string.IsNullOrEmpty(proxyUrl) ? null : proxyUrl));
 
         logger.LogInformation("StartVideo: instanceId={Id} fact='{Fact}'",
             instanceId, fact[..Math.Min(60, fact.Length)]);

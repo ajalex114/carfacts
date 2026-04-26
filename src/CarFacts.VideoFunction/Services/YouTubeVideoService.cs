@@ -18,7 +18,8 @@ public class YouTubeVideoService(
     string ytDlpPath,
     ComputerVisionService visionService,
     string? cookiesPath = null,
-    string? ffmpegPath  = null)
+    string? ffmpegPath  = null,
+    string? proxyUrl    = null)
 {
     private static readonly HttpClient Http = new();
 
@@ -200,11 +201,18 @@ public class YouTubeVideoService(
                 psi.ArgumentList.Add(Path.GetDirectoryName(resolvedFfmpeg)!);
             }
 
-            // Use cookies if available — bypasses bot detection on Azure datacenter IPs
+            // Use cookies if available — secondary auth layer (proxy is primary fix for datacenter IPs)
             if (!string.IsNullOrEmpty(cookiesPath) && File.Exists(cookiesPath))
             {
                 psi.ArgumentList.Add("--cookies");
                 psi.ArgumentList.Add(cookiesPath);
+            }
+
+            // Route through residential proxy — required to bypass YouTube's datacenter IP block
+            if (!string.IsNullOrEmpty(proxyUrl))
+            {
+                psi.ArgumentList.Add("--proxy");
+                psi.ArgumentList.Add(proxyUrl);
             }
 
             using var proc = Process.Start(psi)!;

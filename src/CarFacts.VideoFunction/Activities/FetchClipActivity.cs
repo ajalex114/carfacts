@@ -49,7 +49,7 @@ public class FetchClipActivity(
                     var ytDlpPath   = await ytDlpManager.EnsureReadyAsync();
                     var cookiesPath = await ytDlpManager.EnsureCookiesAsync();
                     var visionSvc   = new ComputerVisionService(input.VisionEndpoint, input.VisionApiKey);
-                    var youtubeSvc  = new YouTubeVideoService(input.YouTubeApiKey, ytDlpPath, visionSvc, cookiesPath, ffmpegPath);
+                    var youtubeSvc  = new YouTubeVideoService(input.YouTubeApiKey, ytDlpPath, visionSvc, cookiesPath, ffmpegPath, input.ProxyUrl);
 
                     var sourceTmp   = Path.Combine(tempDir, "yt-source.mp4");
                     attribution     = await youtubeSvc.FetchClipAsync(input.SearchQuery, input.Duration + 1.5, sourceTmp);

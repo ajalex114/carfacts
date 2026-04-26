@@ -24,7 +24,8 @@ public record FetchClipActivityInput(
     string   VisionApiKey,
     ShotType ShotType           = ShotType.ExteriorRolling,
     string?  FallbackQuery      = null,
-    string?  BrandOnlyFallback  = null);
+    string?  BrandOnlyFallback  = null,
+    string?  ProxyUrl           = null);
 
 public record RenderActivityInput(
     string         JobId,
