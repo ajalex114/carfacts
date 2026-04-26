@@ -1,6 +1,6 @@
 # Cost & API Usage Analysis
 
-<!-- deepfry:commit=b9be8dc agent=cost-analyzer timestamp=2025-07-14T12:00:00Z -->
+<!-- deepfry:commit=5360e57 agent=cost-analyzer timestamp=2025-07-25T00:00:00Z incremental=true scope=CarFacts.VideoFunction -->
 
 ## Paid Service Inventory
 
@@ -245,3 +245,277 @@ TOTAL                                  ~$205/month
    - Using Together AI (`FLUX.1.1-pro` at ~$0.04/image) as primary only if quality is clearly better
    - Testing lower step counts (20 instead of 30) on Stability AI to reduce per-image cost by ~33%
    - Using 512×512 resolution for social media cards (Pinterest, Twitter) where 1024×1024 is overkill
+
+---
+
+## CarFacts.VideoFunction — Cost & API Analysis
+
+> **Incremental update** — This section covers the AI video generation pipeline in `src/CarFacts.VideoFunction/` added in commit `5360e57`. All findings below are scoped to that module; the `CarFacts.Functions` analysis above is unchanged.
+
+### Pricing Reference (used for all estimates below)
+
+| Service | Pricing basis | Unit price |
+|---------|--------------|------------|
+| Azure TTS Neural (`en-US-AndrewNeural`) | Per character synthesized | **$16.00 / 1M chars** |
+| Azure Computer Vision Image Analysis v4 | Per API transaction (any feature combo) | **$1.00 / 1K calls** ($0.001 each) |
+| YouTube Data API v3 — `search.list` | Units per call | **100 units / call**; 10,000 units/day free |
+| Pexels Videos API | Free tier | $0 (200 req/hr, 20,000/month hard cap) |
+| Azure Blob Storage (LRS Hot) — writes | Per 10K ops | $0.065 → **$0.0000065/op** |
+| Azure Blob Storage (LRS Hot) — reads | Per 10K ops | $0.0052 → **$0.00000052/op** |
+| Azure Blob Storage — data at rest | Per GB/month | **$0.018 / GB / month** |
+| Azure Blob Storage — egress (same region) | Intra-region to Azure services | **$0 (free)** |
+| Azure Functions Consumption | Per GB-second (after 400K free) | **$0.0000016 / GB-s** |
+| Azure Functions Consumption | Per execution (after 1M free) | **$0.20 / 1M executions** |
+
+> All cost figures are order-of-magnitude estimates. Token/character counts are derived from code inspection of template strings and typical car fact lengths.
+
+---
+
+### VideoFunction — Paid Service Inventory
+
+| Service | Category | Client/SDK | Endpoint/Model | Call Location | Path Type |
+|---------|----------|-----------|----------------|---------------|-----------|
+| Azure TTS (Cognitive Services Speech) | AI/ML | `Microsoft.CognitiveServices.Speech` `SpeechSynthesizer` | `en-US-AndrewNeural` (SSML, rate 0.88) | `Services/TtsService.cs:37` via `Activities/SynthesizeTtsActivity.cs:33` | 🔴 Hot (1× per video) |
+| Azure Computer Vision Image Analysis | AI/ML (Vision) | `Azure.AI.Vision.ImageAnalysis` `ImageAnalysisClient` | `VisualFeatures.Read \| VisualFeatures.Tags` on YouTube hqdefault thumbnails | `Services/ComputerVisionService.cs:47` called from `Services/YouTubeVideoService.cs:82` | 🔴 Hot (1–5× per segment, N segments per video) |
+| YouTube Data API v3 | Social/Data | Direct HTTP (`HttpClient`) | `search.list` — `videoLicense=creativeCommon`, `maxResults=10` | `Services/YouTubeVideoService.cs:108` via `Activities/FetchClipActivity.cs:52` | 🔴 Hot (1× per segment) |
+| Pexels Videos API | Media/Stock | Direct HTTP (`HttpClient`) | `/videos/search` — `per_page=10`, portrait | `Services/PexelsVideoService.cs:82` and `Activities/FetchClipActivity.cs:127` (duplicate impl) | 🔴 Hot (1–4× per segment, fallback only) |
+| Azure Blob Storage | Cloud Storage | `Azure.Storage.Blobs` `BlobContainerClient` | LRS Hot — containers `poc-jobs`, `poc-videos` | `Activities/SynthesizeTtsActivity.cs:43`, `Activities/FetchClipActivity.cs:101`, `Activities/RenderVideoActivity.cs:120` | 🔴 Hot (9+ ops per video) |
+| Azure Functions Consumption Plan | Cloud Compute | Durable Functions v4 — orchestrator + 4 activity types | .NET 8 isolated worker, 10-min timeout | `Functions/VideoOrchestrator.cs`, all `Activities/` | 🔴 Hot (5–13 executions per video depending on segment count) |
+
+---
+
+### VideoFunction — Pipeline Structure (Segment Count Derivation)
+
+Understanding how many segments a video generates is the key multiplier for all per-call cost estimates.
+
+```
+Fact text (~300 chars, ~60 words)
+  → TTS at rate 0.88 → ~20–25 s of audio (+2.3 s padding = ~24 s total)
+  → SegmentPlanner splits at sentence boundaries (period/?.!/comma + 0.4 s pause)
+     + force-splits any segment > 3.5 s (MaxClipDuration)
+  → Typical result: 6–8 segments  ← baseline = 7 segments used below
+```
+
+Each segment triggers one parallel `FetchClipActivity` (fan-out in `VideoOrchestrator.cs:43`).
+
+---
+
+### VideoFunction — Cost-Per-Video Estimate
+
+#### Baseline assumptions
+- 7 segments per video (derived above)
+- YouTube path: assume ~50% success rate per segment on Azure datacenter IPs (yt-dlp bot detection issues are documented in the code via cookie workarounds)
+- CV calls: avg 2 candidates checked before passing or exhausting (range 1–5)
+- Pexels: called for the ~50% of segments where YouTube fails; primary query succeeds on first attempt
+
+#### Step-by-step cost breakdown
+
+| # | Activity | Service | Calls | Est. cost | Notes |
+|---|----------|---------|-------|-----------|-------|
+| 1 | SynthesizeTts | Azure TTS Neural | 1 SSML synthesis | **~$0.005** | ~300 chars of fact text × $16/1M chars. SSML wrapper tags not billed. |
+| 2 | PlanSegments | — | (CPU only) | $0 | No external API. |
+| 3a | FetchClip × 7 — YouTube search | YouTube Data API v3 | 7 × 1 = 7 searches × 100 units = 700 units | **$0 (within free quota)** | 10,000 units/day free. At 14 videos/day the quota is exhausted; YouTube silently fails beyond that. |
+| 3b | FetchClip × 7 — CV thumbnail checks | Azure Computer Vision | 7 segments × avg 2 CV calls = **14 calls** | **~$0.014** | $0.001/call. Ranges from 7 calls (1 per segment, first candidate always passes) to 35 calls (5 per segment, all rejected). |
+| 3c | FetchClip × 7 — Pexels fallback (50% segments) | Pexels API | ~4 segments × 1 primary Pexels call = 4 calls | $0 (free) | Rate-limited, not billed. |
+| 3d | FetchClip × 7 — yt-dlp download + ffmpeg trim | Network egress / CPU | — | $0 (ingress free, intra-Azure free) | YouTube downloads are internet ingress (free). Clip uploads to blob are intra-Azure. |
+| 3e | FetchClip × 7 — clip blob upload | Azure Blob Storage | 7 write ops + 7 blobs (~4 MB each = 28 MB) | **~$0.0001** | Ops cost negligible; storage accumulates (see below). |
+| 4 | RenderVideo — download clips + WAV | Azure Blob Storage | 8 read ops (~30 MB total) | **~$0** | Intra-region reads are free. Op cost negligible. |
+| 4 | RenderVideo — ffmpeg encode + upload final MP4 | Azure Blob Storage | 1 write op (~25 MB) | **~$0** | Op cost negligible. |
+| 5 | Blob storage at rest | Azure Blob Storage | ~60 MB total blobs kept indefinitely | **~$0.001/month/video** | At 100 videos/month → 6 GB → $0.11/month. Intermediate `poc-jobs/` clips are never deleted. |
+| — | Azure Functions compute | Azure Functions Consumption | ~1,800 GB-seconds per video (see breakdown) | **~$0.003** | After 400K free GB-s/month (≈222 videos free). Breakdown: TTS 60 GB-s, PlanSegs 3 GB-s, 7× FetchClip 1,260 GB-s (parallel), RenderVideo 360 GB-s, orchestrator overhead 120 GB-s. |
+
+**Functions GB-second breakdown per video:**
+
+| Activity | Duration (est.) | Memory (est.) | GB-seconds |
+|----------|----------------|--------------|------------|
+| `SynthesizeTtsActivity` | 60–90 s | 1 GB | ~75 GB-s |
+| `PlanSegmentsActivity` | 5 s | 0.5 GB | ~3 GB-s |
+| `FetchClipActivity` × 7 (parallel) | 90–180 s each | 1.5 GB | ~180 GB-s each → **1,260 GB-s** |
+| `RenderVideoActivity` | 120–240 s | 2 GB | ~360 GB-s |
+| Orchestrator + HTTP trigger overhead | ~30 s | 0.5 GB | ~15 GB-s |
+| **Total** | | | **~1,800 GB-s** |
+
+#### Per-video cost summary
+
+| Scenario | CV calls | Total cost | Dominant cost |
+|----------|---------|-----------|--------------|
+| **Best case** (1 CV call/segment, YouTube always succeeds) | 7 | **~$0.015** | CV ($0.007) + Functions ($0.003) + TTS ($0.005) |
+| **Average** (2 CV calls/segment, 50% YouTube fallback to Pexels) | 14 | **~$0.025** | CV ($0.014) + Functions ($0.003) + TTS ($0.005) |
+| **Worst case** (5 CV calls/segment, YouTube fails then exhausts all 5 candidates) | 35 | **~$0.046** | CV ($0.035) + Functions ($0.006 — longer runs) + TTS ($0.005) |
+
+#### Cost at scale (average case, after free tiers)
+
+| Volume | Daily Cost | Monthly Cost | Monthly Cost Breakdown |
+|--------|-----------|-------------|----------------------|
+| 10 videos/day | ~$0.25 | **~$7.50** | CV $4.20 + TTS $1.50 + Functions $0.90 + Storage $0.30 |
+| 100 videos/day | ~$2.50 | **~$75** | CV $42 + TTS $15 + Functions $9 + Storage $3 |
+| 1K videos/day | ~$25 | **~$750** | CV $420 + TTS $150 + Functions $90 + Storage $30 |
+
+> **CV is ~56% of per-video cost** at average case. Reducing CV call count has the highest savings leverage.
+
+> **YouTube API quota ceiling**: at 100 videos/day × 7 searches × 100 units = 70,000 units/day — 7× over the 10,000/day free quota. At this scale YouTube is effectively disabled (all segments fall back to Pexels), but CV calls still fire (silently wasted until `results.Count == 0` path is hit).
+
+---
+
+### Cost Bombs 💣
+
+#### 💣 Cost Bomb #1: CV Fires Up to 5× Per Segment with Zero Cross-Segment Caching
+
+- **Location**: `Services/YouTubeVideoService.cs:79-99` (`.Take(5)` loop) and `Activities/FetchClipActivity.cs:51` (new `ComputerVisionService` per activity)
+- **Pattern**: Each `FetchClipActivity` instance creates a **brand-new** `ComputerVisionService` (and a brand-new `ImageAnalysisClient` inside `AnalyzeThumbnailAsync` at `ComputerVisionService.cs:43`). With 7 parallel activities, there is zero shared cache. The same popular YouTube video ID can appear in multiple segment search results and be CV-analyzed once per occurrence. The inner loop iterates up to 5 candidates before giving up, firing a CV call for each.
+- **Estimated waste**: Worst case 35 CV calls/video × $0.001 = **$0.035/video** vs. a perfectly cached scenario of 7 calls = **$0.007/video** — a **5× cost multiplier** that is entirely avoidable.
+- **Fix — two-part**:
+  1. **Reduce `.Take(5)` to `.Take(3)`** in `YouTubeVideoService.cs:80`. Most watermark-free, car-present clips are found in the first 2–3 candidates; rarely does a 4th or 5th attempt succeed after the first three fail. This caps worst-case at 21 CV calls.
+  2. **Add a cross-request CV result cache** keyed by `videoId`. A simple `ConcurrentDictionary<string, ThumbnailAnalysis>` in a singleton-scoped `ComputerVisionService` would eliminate duplicate analysis for the same video ID within and across activities. For a more durable cache, store results in Azure Blob Storage (e.g., `cv-cache/{videoId}.json`) with a TTL of 7 days — thumbnails don't change.
+
+```csharp
+// In ComputerVisionService — add singleton cache:
+private static readonly ConcurrentDictionary<string, ThumbnailAnalysis> _cache = new();
+
+public async Task<ThumbnailAnalysis> AnalyzeThumbnailAsync(string videoId)
+{
+    if (_cache.TryGetValue(videoId, out var cached)) return cached;
+    // ... existing analysis logic ...
+    _cache[videoId] = result;
+    return result;
+}
+```
+
+---
+
+#### 💣 Cost Bomb #2: YouTube Quota Exhausted at ~14 Videos/Day — CV Calls Fire Silently Until Empty Results
+
+- **Location**: `Services/YouTubeVideoService.SearchAsync()` (quota error caught at line 129, returns `[]`) → `FindBestCandidateAsync()` returns null immediately on empty list — **but only if the error throws**
+- **Pattern**: When the YouTube Data API quota is exhausted (HTTP 403), the `catch` at `YouTubeVideoService.cs:129` silently returns `[]`, and `FindBestCandidateAsync` returns `null` immediately (no CV calls, correct fallback). **However**, if the API returns a partial/degraded result before quota cutoff (some videos returned, then subsequent searches fail), each segment that received *some* YouTube results will still attempt CV checks on those candidates, burning CV quota on videos that may all be rejected — all before falling back to Pexels anyway. More critically: at 100 videos/day **the entire YouTube layer is dead** (70,000 units/day needed vs. 10,000 free), meaning `FetchClipActivity` always goes straight to Pexels — burning 4 Pexels API calls per segment with no YouTube benefit.
+- **Estimated waste**: At 100 videos/day: YouTube quota exceeded by 7×. Zero YouTube clips used, yet the YouTube API key check (`if (!string.IsNullOrEmpty(input.YouTubeApiKey))`) still enters the YouTube path, attempts the search (fails), then falls through to Pexels. The quota check adds latency on every clip fetch with no upside.
+- **Fix**: Track daily quota usage in a blob-storage counter (e.g., `quota/youtube-{date}.json`). At the start of each `FetchClipActivity`, check if today's quota is near the ceiling (e.g., 9,500 units) and skip the YouTube path entirely for that day. Alternatively, apply for a higher quota on Google Cloud Console (quota increases to 1M units/day are free to request and typically approved).
+
+---
+
+#### 💣 Cost Bomb #3: Pexels Multi-Tier Fallback — Up to 4 API Calls Per Segment, No Response Caching
+
+- **Location**: `Activities/FetchClipActivity.cs:150-186` (`SearchPexelsWithFallbackAsync`)
+- **Pattern**: When YouTube fails (or is skipped), each `FetchClipActivity` fires up to **4 sequential Pexels API calls**: primary model-specific query → brand fallback query → brand-only query → absolute last resort generic query. None of these Pexels search responses are cached between activities or between video jobs. Two different segments of the same video with the same brand (`"Ford Mustang exterior rolling b-roll footage"` vs. `"Ford Mustang interior POV driving footage"`) will each hit Pexels for the brand fallback `"Ford Mustang car driving road footage"` independently. There is also a **duplicate `SearchPexelsAsync` implementation** — one in `FetchClipActivity.cs` and one in `PexelsVideoService.cs` — meaning any caching added to `PexelsVideoService` would not benefit `FetchClipActivity`.
+- **Estimated waste**: 7 segments × 4 Pexels calls = 28 calls/video. Pexels monthly limit: 20,000 calls. At 28 calls/video this exhausts the limit at **~714 videos/month** (~24/day). At the more optimistic 7 calls/video (YouTube handles most), limit is hit at ~2,857 videos/month.
+- **Fix**:
+  1. **Remove the duplicate `SearchPexelsAsync` in `FetchClipActivity.cs`** — have `FetchClipActivity` delegate to `PexelsVideoService` (registered as a DI service) so caching lives in one place.
+  2. **Cache successful Pexels query→videoUrl mappings in Azure Blob Storage** (`pexels-cache/{queryHash}.json`, TTL 24h). A cache hit saves the API call entirely.
+  3. **Deduplicate fallback queries across segments** — before fan-out, the orchestrator could pre-compute unique Pexels queries and batch-search them, then distribute results to activities.
+
+---
+
+#### 💣 Cost Bomb #4: `ImageAnalysisClient` Re-Instantiated Inside Every CV Call
+
+- **Location**: `Services/ComputerVisionService.cs:43-45`
+- **Pattern**: `ImageAnalysisClient` is constructed *inside* `AnalyzeThumbnailAsync` on every single invocation — not just per activity instance, but per call within an activity's CV loop. The Azure SDK's `ImageAnalysisClient` maintains an internal `HttpClient` and connection pool; re-creating it per call discards the connection pool, forces a new TLS handshake to the Cognitive Services endpoint for every CV transaction, and adds 50–150 ms of overhead per call.
+- **Estimated waste**: Not a direct billing impact (CV pricing is per-transaction regardless), but adds 50–150 ms × up to 35 CV calls = up to **~5 seconds of pure connection overhead per video** that shows up as extended Azure Functions execution time (billed GB-seconds).
+- **Fix**: Hoist `ImageAnalysisClient` to a field, initialized once in the constructor:
+  ```csharp
+  public class ComputerVisionService(string endpoint, string apiKey)
+  {
+      private readonly ImageAnalysisClient _client =
+          new(new Uri(endpoint), new AzureKeyCredential(apiKey));
+
+      public async Task<ThumbnailAnalysis> AnalyzeThumbnailAsync(string videoId)
+      {
+          // use _client directly — no new() here
+          var result = await _client.AnalyzeAsync(new Uri(thumbnailUrl), VisualFeatures.Read | VisualFeatures.Tags);
+          ...
+      }
+  }
+  ```
+
+---
+
+#### 💣 Cost Bomb #5: Intermediate Blobs in `poc-jobs/` Never Expire
+
+- **Location**: `Activities/FetchClipActivity.cs:101-103` and `Activities/SynthesizeTtsActivity.cs:42-44`
+- **Pattern**: Each video job writes to `poc-jobs/{jobId}/narration.wav` (~1 MB) and `poc-jobs/{jobId}/clip_00.mp4` through `clip_06.mp4` (~4 MB each = ~28 MB). These blobs are uploaded as durable storage for the render step, then **never deleted**. There is no blob lifecycle policy and no cleanup call after `RenderVideoActivity` completes. At 100 videos/day: 100 × 29 MB intermediate files = **~2.9 GB/day** of accumulating blob storage that serves no purpose after rendering.
+- **Estimated waste**: At 100 videos/day × $0.018/GB/month: accumulated after 30 days = 87 GB → **$1.57/month and growing** (storage cost compounds as blobs accumulate indefinitely).
+- **Fix — two options**:
+  1. **Delete intermediate blobs at the end of `RenderVideoActivity`**: after the final MP4 is uploaded, call `DeleteBlobAsync` on the WAV and all clip blobs in `poc-jobs/{jobId}/`.
+  2. **Add a Blob Lifecycle Policy** (zero code change): in the Azure portal or Bicep/ARM, add a lifecycle rule: `if lastModified > 1 day AND blobPath starts with "poc-jobs/" → delete`. This is the safer option as it doesn't require code changes and handles orphaned jobs (e.g., render activity failed before cleanup).
+
+---
+
+### VideoFunction — Caching & Optimization Status
+
+| Service | Cached | Rate Limited (client-side) | Batched | Fallback |
+|---------|--------|---------------------------|---------|----------|
+| Azure TTS Neural | ❌ No WAV cache (same fact re-synthesizes) | ✅ N/A (1 call/video) | N/A | ❌ No fallback (throws on failure) |
+| Azure Computer Vision | ❌ No videoId→result cache; client re-created per call | ❌ No client-side throttle | N/A (single URL per call) | ✅ Optimistic fallback on exception (`HasWatermark: false, HasCar: true`) |
+| YouTube Data API v3 | ❌ No search result cache | ❌ No client-side quota tracking | ❌ 1 search per segment (no cross-segment dedup) | ✅ Returns null → Pexels fallback |
+| Pexels Videos API | ❌ No query→URL cache in FetchClipActivity | ✅ `SemaphoreSlim(2)` in PexelsVideoService (but not in FetchClipActivity) | ❌ Individual calls; up to 4 per segment | ✅ 4-tier fallback to generic query |
+| Azure Blob Storage | N/A | ✅ Built-in SDK retry | ❌ Individual uploads | ✅ `CreateIfNotExistsAsync` |
+| Azure Functions Consumption | N/A | ✅ Durable Functions replay-safety | ✅ Fan-out pattern (parallel FetchClip) | ✅ Partial clip failure tolerated (readyCount > 0) |
+
+---
+
+### VideoFunction — Cost Summary
+
+| Metric | Value |
+|--------|-------|
+| **Total paid services (VideoFunction)** | 4 billable (TTS, CV, Blob, Functions) + 2 free-tier (YouTube, Pexels) |
+| **Hot-path services** | All 4 (every video generation invocation) |
+| **Cost bombs found** | 5 |
+| **Dominant cost driver** | Azure Computer Vision (~56% of per-video variable cost) |
+| **Estimated cost per video (average)** | **~$0.025** |
+| **Estimated cost per video (worst case)** | **~$0.046** |
+| **Break-even with free Function tier** | ~222 videos/month (400K GB-s grant) |
+| **YouTube quota ceiling (free tier)** | ~14 videos/day (10,000 units ÷ 700 units/video) |
+| **Pexels rate limit ceiling (worst case)** | ~24 videos/day (20,000 calls/month ÷ 28 calls/video) |
+| **Estimated monthly cost @ 100 videos/day** | **~$75** (CV ~$42, TTS ~$15, Functions ~$9, Storage ~$3, Blob accumulation ~$6+) |
+
+### Monthly VideoFunction Cost Breakdown (100 videos/day, average case)
+
+```
+Azure Computer Vision (14 calls × 100 vids/day × 30d) ....  $42.00  (56%)
+Azure TTS Neural (300 chars × 100 vids/day × 30d) ........  $14.40  (19%)
+Azure Functions Consumption (1,800 GB-s × 3K vids/mo) ....   $8.00  (11%)
+Azure Blob Storage — accumulating poc-jobs/ blobs ..........   $6.00  (8%)  [avoidable]
+Azure Blob Storage — final poc-videos/ storage .............   $1.62  (2%)
+Azure Blob Storage — operations (reads + writes) ...........   $0.02  (<1%)
+YouTube Data API v3 .......................................   $0.00  [quota only; $0 billing]
+Pexels Videos API .........................................   $0.00  [free, but rate-limited]
+──────────────────────────────────────────────────────────────────────────────
+TOTAL                                                        ~$72/month
+```
+
+---
+
+### VideoFunction — Recommendations (by savings impact)
+
+1. 💰💰💰 **Cache CV results by `videoId` + reduce `.Take(5)` to `.Take(3)`** — up to 80% CV cost reduction
+   CV is the #1 cost driver. A `ConcurrentDictionary<string, ThumbnailAnalysis>` singleton (or blob-backed TTL cache) eliminates duplicate analysis of the same video ID across segments. Reducing the candidate limit from 5 to 3 caps the per-segment maximum at 3 calls instead of 5. Combined effect: average CV calls drop from 14 to ~8–10 per video, saving ~**$18–24/month at 100 videos/day**.
+   - In `ComputerVisionService.cs`: add `private static readonly ConcurrentDictionary<string, ThumbnailAnalysis> _cache = new()` and check/populate it in `AnalyzeThumbnailAsync`.
+   - In `YouTubeVideoService.cs:80`: change `.Take(5)` → `.Take(3)`.
+
+2. 💰💰 **Add Azure Blob lifecycle rule to auto-delete `poc-jobs/` blobs after 1 day** — saves ~$6–60+/month (growing)
+   Intermediate WAV and clip blobs in `poc-jobs/` serve no purpose after rendering. Without cleanup, storage grows unboundedly. Add a lifecycle policy in Bicep/ARM:
+   ```json
+   { "name": "delete-job-intermediates", "enabled": true,
+     "definition": { "filters": { "blobTypes": ["blockBlob"], "prefixMatch": ["poc-jobs/"] },
+                     "actions": { "baseBlob": { "delete": { "daysAfterModificationGreaterThan": 1 } } } } }
+   ```
+
+3. 💰💰 **Track YouTube quota usage and skip YouTube path when daily ceiling is near**
+   At >14 videos/day the YouTube path adds latency with zero yield. A blob-stored daily counter (`quota/youtube-YYYY-MM-DD.json`) incremented per search call lets the activity skip the YouTube block when today's count ≥ 95 calls (9,500 units). This eliminates the wasted HTTP round-trips and makes the fallback to Pexels deterministic and immediate. Also apply for a quota increase (free, up to 1M units/day) at Google Cloud Console if YouTube CC clips are genuinely valuable.
+
+4. 💰💰 **Consolidate the duplicate Pexels implementation and add query→URL caching**
+   `FetchClipActivity.cs` contains a private `SearchPexelsAsync` that duplicates `PexelsVideoService.SearchPexelsAsync`. Delete the copy in `FetchClipActivity` and inject `PexelsVideoService` via DI. In `PexelsVideoService`, add a blob-backed cache keyed by `SHA256(query + orientation)` with a 24-hour TTL. This eliminates repeat Pexels searches for the same brand/shot type across videos and reduces exposure to the 20,000/month rate limit ceiling.
+
+5. 💰 **Move `ImageAnalysisClient` construction out of `AnalyzeThumbnailAsync` into the constructor**
+   Currently `new ImageAnalysisClient(...)` is called on every CV invocation, forcing a new TLS handshake and discarding the HTTP connection pool. Hoisting it to a field (initialized once) saves ~50–150 ms per CV call. At 14 CV calls/video × 100 videos/day this reclaims ~3–5 minutes of Functions execution time per day — translating to a modest but real GB-second savings at scale.
+
+6. 💰 **Cache TTS WAV output keyed by fact hash**
+   If the same fact text is submitted more than once (retry, test run, reprocessing), TTS is billed again for an identical synthesis. A blob check `tts-cache/{SHA256(fact)}.wav` before calling `SynthesizeAsync` would save $0.005 per duplicate. Low impact today but free to implement and eliminates any runaway cost from a retry loop.
+
+---
+
+### Combined CarFacts Platform Cost Summary (both modules)
+
+| Module | Monthly cost (current / baseline) | Primary cost driver |
+|--------|----------------------------------|---------------------|
+| `CarFacts.Functions` (blog + social) | ~$205/month | Twitter/X API Basic Plan ($200 fixed) |
+| `CarFacts.VideoFunction` (video gen, 100 vids/day) | ~$72/month | Azure Computer Vision ($42) |
+| **Combined** | **~$277/month** | Twitter/X dominates at lower video volumes; CV grows linearly with video output |

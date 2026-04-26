@@ -23,6 +23,7 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
     private readonly SocialMediaSettings _settings;
     private readonly ISecretProvider _secretProvider;
     private readonly ILogger<TwitterService> _logger;
+    private string? _cachedUserId;
 
     public string PlatformName => "Twitter/X";
     public bool IsEnabled => _settings.TwitterEnabled;
@@ -228,6 +229,9 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
 
     public async Task<string> GetAuthenticatedUserIdAsync(CancellationToken cancellationToken = default)
     {
+        if (_cachedUserId is not null)
+            return _cachedUserId;
+
         var consumerKey = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerKey, cancellationToken);
         var consumerSecret = await _secretProvider.GetSecretAsync(SecretNames.TwitterConsumerSecret, cancellationToken);
         var accessToken = await _secretProvider.GetSecretAsync(SecretNames.TwitterAccessToken, cancellationToken);
@@ -251,6 +255,7 @@ public sealed class TwitterService : ISocialMediaService, ITwitterService
         var userId = doc.RootElement.GetProperty("data").GetProperty("id").GetString()
             ?? throw new InvalidOperationException("Could not get authenticated user ID");
 
+        _cachedUserId = userId;
         _logger.LogInformation("Authenticated Twitter user ID: {UserId}", userId);
         return userId;
     }

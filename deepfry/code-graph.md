@@ -1,392 +1,360 @@
-<!-- deepfry:commit=b9be8dc1501e31ea9edfa99c938527818fa2aca5 agent=code-grapher timestamp=2025-07-17T12:00:00Z -->
-
-# Code Structure Graph — CarFacts
-
-> .NET 8 Azure Functions v4 (isolated worker) app that generates daily car-history blog posts via AI, publishes to WordPress, and distributes content across social media platforms on a schedule using Durable Functions orchestrators.
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Runtime | .NET 8, Azure Functions v4 (isolated worker) |
-| Orchestration | Durable Task Framework (Durable Functions) |
-| AI / LLM | Microsoft Semantic Kernel → Azure OpenAI / OpenAI |
-| Image Gen | Stability AI (primary), Together AI (fallback) |
-| CMS | WordPress.com REST API v1.1 (OAuth2) |
-| Data Store | Azure Cosmos DB (fact-keywords + social-media-queue containers) |
-| Secrets | Azure Key Vault (prod) / local config (dev) |
-| Config | Azure App Configuration |
-| Social | Twitter/X API v2 (OAuth1.0a), Facebook Graph API, Reddit API, Pinterest API v5 |
-| Logging | Serilog (local file), Application Insights (Azure) |
-
----
+<!-- deepfry:commit=5360e5707b59a6cf919f9c880a227006d8f33b09 agent=code-grapher timestamp=2025-07-14T00:00:00Z -->
+# Code Structure Graph — CarFacts.VideoFunction
 
 ## Entry Points
 
-| Entry | File | Type | Trigger | Description |
-|-------|------|------|---------|-------------|
-| `CarFactsTimerTrigger` | `Functions/CarFactsTimerTrigger.cs:21` | Timer | `%Schedule:CronExpression%` (default 6 AM UTC) | Main daily pipeline — starts `CarFactsOrchestrator` |
-| `SocialMediaPostingTrigger` | `Functions/SocialMediaPostingTrigger.cs:21` | Timer | `%SocialMedia:PostingCronExpression%` | Reads pending queue items → starts `ScheduledPostingOrchestrator` |
-| `PinterestPostingTrigger` | `Functions/PinterestPostingTrigger.cs:26` | Timer | `%SocialMedia:PinterestPostingCronExpression%` | Posts one pin → starts `PinterestPostingOrchestrator` |
-| `TweetReplyTrigger` | `Functions/TweetReplyTrigger.cs:22` | HTTP POST | Function-level auth | Manual/scheduled tweet reply generation |
-| `Program.cs` | `Program.cs:1` | Host bootstrap | — | DI registration, config, Serilog setup |
+| Entry | File | Type | Description |
+|-------|------|------|-------------|
+| `Program.cs` (top-level) | `Program.cs` | Bootstrap | `HostBuilder` → `ConfigureFunctionsWebApplication()` + DI registration; calls `host.Run()` |
+| `HttpStartFunction.StartVideo` | `Functions/HttpStartFunction.cs:29` | HTTP Trigger | `POST /api/start-video` — schedules Durable orchestration, returns 202 + jobId |
+| `StatusFunction.GetVideoStatus` | `Functions/StatusFunction.cs:18` | HTTP Trigger | `GET /api/status/{jobId}` — polls Durable instance state |
+| `LogsFunction.GetJobLogs` | `Functions/LogsFunction.cs:25` | HTTP Trigger | `GET /api/logs/{jobId}` — queries App Insights traces for a job |
+| `GenerateVideoFunction.Run` | `Functions/GenerateVideoFunction.cs:27` | HTTP Trigger | `POST /api/GenerateVideo` — **legacy POC**: synchronous end-to-end in a single HTTP call |
+| `VideoOrchestrator.Run` | `Functions/VideoOrchestrator.cs:17` | Orchestration Trigger | Durable orchestrator; chains 4 activities for async video generation |
 
 ---
 
 ## Module Map
 
-### Configuration
-- **Path**: `Configuration/`
-- **Type**: Infrastructure
-- **Key classes**:
-  - `AISettings` → Text/Image provider selection, model IDs, endpoints (`AppSettings.cs:3`)
-  - `StabilityAISettings` → Image model, dimensions, steps (`AppSettings.cs:21`)
-  - `TogetherAISettings` → Fallback image model config (`AppSettings.cs:33`)
-  - `WordPressSettings` → Site ID, post status, embed options (`AppSettings.cs:43`)
-  - `KeyVaultSettings` → Vault URI (`AppSettings.cs:54`)
-  - `ScheduleSettings` → Cron expression (`AppSettings.cs:61`)
-  - `CosmosDbSettings` → Database/container names (`AppSettings.cs:68`)
-  - `WebStoriesSettings` → Web story toggle, publisher info (`AppSettings.cs:76`)
-  - `SocialMediaSettings` → Per-platform toggles, daily counts, engagement ranges (`AppSettings.cs:85`)
-  - `SecretNames` → All Key Vault secret name constants (`SecretNames.cs:7`)
-  - `PinterestBoardTaxonomy` → Rule-based board routing by keyword matching (`PinterestBoardTaxonomy.cs:8`)
+### Functions Layer — `Functions/`
 
-### Models
-- **Path**: `Models/`
-- **Type**: Shared DTOs
-- **Key classes**:
-  - `CarFact` → year, catchyTitle, fact, carModel, imagePrompt (`CarFact.cs:5`)
-  - `RawCarFactsContent` → List of `CarFact` from LLM (`RawCarFactsContent.cs:9`)
-  - `SeoMetadata` → mainTitle, metaDescription, keywords, factKeywords (`SeoMetadata.cs:9`)
-  - `GeneratedImage` → factIndex, imageData bytes, fileName (`GeneratedImage.cs`)
-  - `UploadedMedia` → factIndex, mediaId, sourceUrl (`UploadedMedia.cs`)
-  - `WordPressPostResult` → postId, postUrl, title, publishedAt (`WordPressPostResult.cs`)
-  - `FactKeywordRecord` → Cosmos DB document for backlinks + social tracking (`FactKeywordRecord.cs:9`)
-  - `SocialMediaQueueItem` → Cosmos DB document for scheduled posts with TTL (`SocialMediaQueueItem.cs:9`)
-  - `BacklinkSuggestion` / `RelatedPostSuggestion` → Cross-post linking suggestions (`BacklinkSuggestion.cs`)
-  - Activity I/O DTOs: `UploadImageInput`, `PublishInput`, `StoreFactKeywordsInput`, `FindBacklinksInput`, `SocialMediaOrchestratorInput`, `ScheduledPostInput`, `TweetReplyResult`, `TweetLikeResult`, `PinterestFactSelection`, `CreateWebStoryInput`, etc. (`ActivityInputs.cs`)
+#### `VideoOrchestrator`
+- **File**: `Functions/VideoOrchestrator.cs`
+- **Type**: Durable Orchestrator Function
+- **Trigger**: `[OrchestrationTrigger]`
+- **Input**: `OrchestratorInput` (JobId, Fact, StorageConnectionString, PexelsApiKey, YouTubeApiKey, VisionEndpoint, VisionApiKey)
+- **Output**: `RenderActivityResult`
+- **Key methods**:
+  - `Run(TaskOrchestrationContext ctx)` — 4-step sequential pipeline with fan-out at step 3:
+    1. `CallActivityAsync<TtsActivityResult>(nameof(SynthesizeTtsActivity), ...)`
+    2. `CallActivityAsync<List<VideoSegment>>(nameof(PlanSegmentsActivity), ...)`
+    3. `segments.Select(…).Select(ctx.CallActivityAsync<FetchClipActivityResult>)` → `Task.WhenAll(…)` **(fan-out)**
+    4. `CallActivityAsync<RenderActivityResult>(nameof(RenderVideoActivity), ...)`
+- **Defined records**: `OrchestratorInput` (line 101)
 
-### Prompts
-- **Path**: `Prompts/`
-- **Type**: Infrastructure (embedded resources)
-- **Key classes**:
-  - `PromptLoader` → Loads embedded `.txt` prompts with template substitution (`PromptLoader.cs:6`)
-- **Embedded resources**: `SystemPrompt.txt`, `UserPrompt.txt`, `SeoSystemPrompt.txt`, `SeoUserPrompt.txt`, `TweetFactsSystemPrompt.txt`, `TweetFactsUserPrompt.txt`, `TweetLinkPrompt.txt`, `TweetReplySystemPrompt.txt`, `TweetReplyUserPrompt.txt`
+#### `HttpStartFunction`
+- **File**: `Functions/HttpStartFunction.cs`
+- **Type**: HTTP Function (Durable client)
+- **Route**: `POST /api/start-video` (AuthorizationLevel.Function)
+- **Injects**: `IConfiguration`, `ILogger<HttpStartFunction>`
+- **DurableClient**: `DurableTaskClient client`
+- **Key methods**:
+  - `Run(...)` — reads `fact` from request body; reads keys from `IConfiguration`; calls `client.ScheduleNewOrchestrationInstanceAsync(nameof(VideoOrchestrator), OrchestratorInput)` → returns 202 with `{ jobId, statusUrl }`
+- **Config keys read**: `Storage:ConnectionString`, `Pexels:ApiKey`, `YouTube:ApiKey` (optional), `Vision:Endpoint` (optional), `Vision:ApiKey` (optional)
 
-### Helpers
-- **Path**: `Helpers/`
-- **Type**: Infrastructure (utilities)
-- **Key classes**:
-  - `UsPostingScheduler` → Generates US-friendly posting times across 4 daily windows with jitter (`UsPostingScheduler.cs:14`)
-  - `SlugHelper` → Generates URL-friendly anchor IDs from car model + year (`SlugHelper.cs:9`)
+#### `StatusFunction`
+- **File**: `Functions/StatusFunction.cs`
+- **Type**: HTTP Function (Durable client)
+- **Route**: `GET /api/status/{jobId}` (AuthorizationLevel.Function)
+- **Injects**: `ILogger<StatusFunction>`
+- **DurableClient**: `DurableTaskClient client`
+- **Key methods**:
+  - `Run(...)` — calls `client.GetInstanceAsync(jobId, getInputsAndOutputs: true)`; deserializes output as `RenderActivityResult`; returns `{ jobId, status, videoUrl, durationSecs, clipCount, clips[] }`
 
-### Services — AI / Content Generation
-- **Path**: `Services/`
-- **Type**: Service
-- **Exposes**: `IContentGenerationService`, `ISeoGenerationService`
-- **Depends on**: `IChatCompletionService` (Semantic Kernel), `PromptLoader`
-- **Key classes**:
-  - `ContentGenerationService` → Generates 5 car facts via LLM chat completion (`ContentGenerationService.cs:11`)
-  - `SeoGenerationService` → Separate LLM pass to generate SEO metadata from facts (`SeoGenerationService.cs:17`)
+#### `LogsFunction`
+- **File**: `Functions/LogsFunction.cs`
+- **Type**: HTTP Function (standalone)
+- **Route**: `GET /api/logs/{jobId}` (AuthorizationLevel.Function)
+- **Injects**: `IConfiguration`, `ILogger<LogsFunction>`
+- **Key methods**:
+  - `Run(...)` — reads `AppInsights:ApiKey` from config; calls App Insights REST API (`https://api.applicationinsights.io/v1/apps/{AppInsightsAppId}/query`) with a KQL query filtering traces by jobId; returns structured `{ jobId, totalLogLines, clipActivity[], allLogs[] }`
+- **Hard-coded App Insights appId**: `adf71ab0-69e2-4d63-837a-49c287cd6bad`
 
-### Services — Image Generation
-- **Path**: `Services/`
-- **Type**: Integration
-- **Exposes**: `IImageGenerationService`
-- **Depends on**: `ISecretProvider`, `StabilityAISettings`, `TogetherAISettings`
-- **Key classes**:
-  - `ImageGenerationService` → Stability AI text-to-image with 429 retry (`ImageGenerationService.cs:11`)
-  - `TogetherAIImageGenerationService` → Together AI (FLUX) fallback provider (`TogetherAIImageGenerationService.cs:15`)
-  - `FallbackImageGenerationService` → Decorator: tries providers in order, returns `[]` if all fail (`FallbackImageGenerationService.cs:12`)
-  - `CachedImageGenerationService` → Decorator: local disk cache for dev (`CachedImageGenerationService.cs:12`)
+#### `GenerateVideoFunction` *(Legacy POC — synchronous)*
+- **File**: `Functions/GenerateVideoFunction.cs`
+- **Type**: HTTP Function (standalone, no Durable)
+- **Route**: `POST|GET /api/GenerateVideo` (AuthorizationLevel.Function)
+- **Injects**: `FfmpegManager`, `TtsService`, `SubtitleGenerator`, `VideoStorageService`, `PexelsApiKeyHolder`, `ILogger`
+- ⚠️ **`VideoStorageService` and `PexelsApiKeyHolder` are not registered in `Program.cs`** — this function will fail to resolve from DI on startup
+- **Key methods**:
+  - `Run(...)` — inline pipeline: TTS → subtitles → `SegmentPlanner.Plan()` → `PexelsVideoService.ResolveClipsAsync()` → `VideoGenerator.GenerateFromClipsAsync()` → `VideoStorageService.UploadAsync()` → return 200 with `{ videoUrl, durationSeconds, wordCount, clipCount }`
 
-### Services — WordPress
-- **Path**: `Services/`
-- **Type**: Integration
-- **Exposes**: `IWordPressService`
-- **Depends on**: `HttpClient`, `ISecretProvider`, `WordPressSettings`
-- **Key classes**:
-  - `WordPressService` → Full WordPress.com REST API client: create draft, upload images, update+publish, web stories (`WordPressService.cs:16`)
+---
 
-### Services — Content Formatting
-- **Path**: `Services/`
-- **Type**: Service
-- **Exposes**: `IContentFormatterService`
-- **Depends on**: `SlugHelper`
-- **Key classes**:
-  - `ContentFormatterService` → Builds Schema.org-annotated HTML with ToC, fact sections, images, backlinks, FAQ, related posts (`ContentFormatterService.cs:9`)
+### Activities Layer — `Activities/`
 
-### Services — Social Media
-- **Path**: `Services/`
-- **Type**: Integration
-- **Exposes**: `ISocialMediaService`, `ITwitterService`, `IPinterestService`
-- **Depends on**: `HttpClient`, `ISecretProvider`, `SocialMediaSettings`
-- **Key classes**:
-  - `TwitterService` → X API v2: post, search, reply, like via OAuth1.0a HMAC-SHA1 (`TwitterService.cs:16`)
-  - `FacebookService` → Facebook Graph API page posting (`FacebookService.cs:14`)
-  - `RedditService` → Reddit OAuth2 link submissions (`RedditService.cs:15`)
-  - `PinterestService` → Pinterest API v5: create pins, manage boards (`PinterestService.cs:17`)
-  - `SocialMediaPublisher` → Fan-out publisher: dispatches to all enabled `ISocialMediaService` instances (`SocialMediaPublisher.cs:10`)
+#### `SynthesizeTtsActivity` *(Activity 1)*
+- **File**: `Activities/SynthesizeTtsActivity.cs`
+- **Trigger**: `[ActivityTrigger]`
+- **Input**: `TtsActivityInput` (JobId, Fact, StorageConnectionString)
+- **Output**: `TtsActivityResult` (AudioUrl, AssSubtitleText, Words, TotalDuration)
+- **Injects (constructor)**: `TtsService`, `SubtitleGenerator`, `ILogger<SynthesizeTtsActivity>`
+- **Key methods**:
+  - `Run(...)` — calls `ttsService.SynthesizeAsync(fact, wavPath)` → `subtitleGenerator.GenerateAss(words, totalDuration, "carfactsdaily.com")` → uploads WAV to blob `poc-jobs/{jobId}/narration.wav` → returns SAS URL + ASS text + word timings
+  - `UploadToBlobAsync(connStr, filePath, blobPath)` — private; uploads to Azure Blob, returns 4h SAS URL
 
-### Services — Data / Cosmos DB
-- **Path**: `Services/`
-- **Type**: Repository
-- **Exposes**: `IFactKeywordStore`, `ISocialMediaQueueStore`
-- **Depends on**: `CosmosClient`, `CosmosDbSettings`
-- **Key classes**:
-  - `CosmosFactKeywordStore` → CRUD + keyword search on `fact-keywords` container (`CosmosFactKeywordStore.cs:10`)
-  - `CosmosSocialMediaQueueStore` → CRUD + scheduled item queries on `social-media-queue` container (`CosmosSocialMediaQueueStore.cs:10`)
-  - `NullFactKeywordStore` / `NullSocialMediaQueueStore` → No-op fallbacks when Cosmos is unconfigured
+#### `PlanSegmentsActivity` *(Activity 2)*
+- **File**: `Activities/PlanSegmentsActivity.cs`
+- **Trigger**: `[ActivityTrigger]`
+- **Input**: `PlanActivityInput` (Words, TotalDuration, Fact)
+- **Output**: `List<VideoSegment>`
+- **Injects (constructor)**: `ILogger<PlanSegmentsActivity>`
+- **Key methods**:
+  - `Run(...)` — pure CPU; delegates entirely to `SegmentPlanner.Plan(input.Words, input.TotalDuration, input.Fact)` — no I/O
 
-### Services — Secrets
-- **Path**: `Services/`
-- **Type**: Infrastructure
-- **Exposes**: `ISecretProvider`
-- **Key classes**:
-  - `KeyVaultSecretProvider` → Azure Key Vault via `DefaultAzureCredential` (prod) (`KeyVaultSecretProvider.cs:10`)
-  - `LocalSecretProvider` → Reads from `Secrets:*` config section (dev) (`LocalSecretProvider.cs:7`)
+#### `FetchClipActivity` *(Activity 3 — fan-out, one instance per segment)*
+- **File**: `Activities/FetchClipActivity.cs`
+- **Trigger**: `[ActivityTrigger]`
+- **Input**: `FetchClipActivityInput` (JobId, Index, SearchQuery, Duration, PexelsApiKey, StorageConnectionString, YouTubeApiKey, VisionEndpoint, VisionApiKey, ShotType, FallbackQuery, BrandOnlyFallback)
+- **Output**: `FetchClipActivityResult` (Index, ClipUrl, Attribution?)
+- **Injects (constructor)**: `FfmpegManager`, `YtDlpManager`, `ILogger<FetchClipActivity>`
+- **Instantiates internally (via `new`)**: `ComputerVisionService`, `YouTubeVideoService`
+- **Key methods**:
+  - `Run(...)` — two-path strategy:
+    - *Path A*: `youtubeSvc.FetchClipAsync(query, duration, sourceTmp)` → if `attribution != null`, trim with `TrimClipAsync()` → upload
+    - *Path B* (fallback): `SearchPexelsWithFallbackAsync(...)` (4-tier: primary → fallbackQuery → brandOnlyFallback → generic) → download → trim → upload
+  - `TrimClipAsync(ffmpegPath, source, output, duration)` — private; spawns `ffmpeg.exe` process, re-encodes to 720×1280 @30fps
+  - `UploadClipAsync(connStr, filePath, blobPath)` — private; uploads to `poc-jobs/{jobId}/clip_{index:D2}.mp4`, returns 4h SAS URL
+  - `SearchPexelsAsync(query, apiKey)` — private; `GET https://api.pexels.com/videos/search?...`
+  - `SearchPexelsWithFallbackAsync(...)` — private; tries up to 4 Pexels queries in order
 
-### Functions — Orchestrators
-- **Path**: `Functions/`
-- **Type**: API (Durable Functions orchestrators)
-- **Key classes**:
-  - `CarFactsOrchestrator` → Main 8-step pipeline: generate → SEO+images → backlinks → draft → upload → publish → social queue → web story (`CarFactsOrchestrator.cs:10`)
-  - `SocialMediaOrchestrator` → Generate tweet facts + link tweets → store in queue per enabled platform (`SocialMediaOrchestrator.cs:13`)
-  - `ScheduledPostingOrchestrator` → Read pending Cosmos items → fan-out to `ScheduledPostOrchestrator` sub-instances (`ScheduledPostingOrchestrator.cs:14`)
-  - `ScheduledPostOrchestrator` → Per-item: durable timer sleep → execute post (handles reply/like placeholders with retries) (`ScheduledPostOrchestrator.cs:14`)
-  - `PinterestPostingOrchestrator` → Select fact → generate pin content → create pin → update tracking (`PinterestPostingOrchestrator.cs:14`)
-  - `TweetReplyOrchestrator` → Search Twitter → generate AI reply → store in queue (`TweetReplyOrchestrator.cs:13`)
+#### `RenderVideoActivity` *(Activity 4)*
+- **File**: `Activities/RenderVideoActivity.cs`
+- **Trigger**: `[ActivityTrigger]`
+- **Input**: `RenderActivityInput` (JobId, AudioUrl, AssSubtitleText, ClipUrls, TotalDuration, StorageConnectionString, SegmentDurations, ClipSources)
+- **Output**: `RenderActivityResult` (VideoUrl, DurationSeconds, ClipCount, ClipSources)
+- **Injects (constructor)**: `FfmpegManager`, `ILogger<RenderVideoActivity>`
+- **Instantiates internally (via `new`)**: `VideoGenerator(ffmpegPath)`
+- **Key methods**:
+  - `Run(...)` — downloads audio + clips from blob SAS URLs; writes `subtitles.ass` (no BOM); builds `List<VideoSegment>` with local paths + cumulative durations; calls `generator.GenerateFromClipsAsync()` → uploads to `poc-videos` container, returns 48h SAS URL
+  - `DownloadAsync(url, destPath)` — private
+  - `UploadVideoAsync(connStr, filePath, blobName)` — private; uploads to container `poc-videos`
 
-### Functions — Activities (28 total)
-- **Path**: `Functions/Activities/`
-- **Type**: API (Durable Functions activity functions)
-- **Key activities**:
-  - `GenerateRawContentActivity` → calls `IContentGenerationService.GenerateFactsAsync`
-  - `GenerateSeoActivity` → calls `ISeoGenerationService.GenerateSeoAsync`
-  - `GenerateAllImagesActivity` → calls `IImageGenerationService.GenerateImagesAsync`
-  - `CreateDraftPostActivity` → calls `IWordPressService.CreateDraftPostAsync`
-  - `UploadSingleImageActivity` → calls `IWordPressService.UploadSingleImageAsync`
-  - `FormatAndPublishActivity` → calls `IContentFormatterService` + `IWordPressService.UpdateAndPublishPostAsync`
-  - `FindBacklinksActivity` → calls `IFactKeywordStore.FindRelatedFactsAsync`
-  - `StoreFactKeywordsActivity` → calls `IFactKeywordStore.UpsertFactsAsync`
-  - `StoreSocialMediaQueueActivity` → calls `ISocialMediaQueueStore.AddItemsAsync`
-  - `GetPendingScheduledItemsActivity` → calls `ISocialMediaQueueStore.GetPendingScheduledItemsAsync`
-  - `ExecuteScheduledPostActivity` → calls `SocialMediaPublisher.PublishRawAsync` / `ITwitterService.ReplyToTweetAsync` / `ITwitterService.LikeTweetAsync`
-  - `GenerateTweetFactsActivity` → calls `IChatCompletionService` with tweet prompts
-  - `GenerateTweetLinkActivity` → calls `IChatCompletionService` with link tweet prompts
-  - `GenerateTweetReplyActivity` → calls `ITwitterService.SearchRecentTweetsAsync` + `IChatCompletionService`
-  - `GenerateTweetLikeActivity` → calls `ITwitterService.SearchRecentTweetsAsync`
-  - `SelectPinterestFactActivity` → calls `IFactKeywordStore.GetFactsForPinterestAsync` + `PinterestBoardTaxonomy`
-  - `GeneratePinContentActivity` → calls `IChatCompletionService` for pin title/description
-  - `CreatePinterestPinActivity` → calls `IPinterestService.CreatePinAsync`
-  - `UpdatePinterestTrackingActivity` → calls `IFactKeywordStore.IncrementPinterestCountAsync`
-  - `CreateWebStoryActivity` → calls `IWordPressService.CreateWebStoryAsync`
-  - `GetEnabledPlatformsActivity` → calls `SocialMediaPublisher.GetEnabledPlatformNames`
-  - `IncrementSocialCountsActivity` → calls `IFactKeywordStore.IncrementSocialCountsAsync`
+---
+
+### Services Layer — `Services/`
+
+#### `TtsService`
+- **File**: `Services/TtsService.cs`
+- **Lifetime**: Singleton (registered in `Program.cs`)
+- **Constructor**: `(subscriptionKey, region, voiceName="en-US-AndrewNeural")`
+- **External SDK**: `Microsoft.CognitiveServices.Speech`
+- **Key methods**:
+  - `SynthesizeAsync(text, outputWavPath) → List<WordTiming>` — builds SSML with `<prosody rate='0.88'>`, hooks `synthesizer.WordBoundary` to capture per-word offsets, writes WAV file, returns `WordTiming[]` (word, startSeconds, durationSeconds)
+- **External call**: Azure Cognitive Services Speech API (subscription region)
+
+#### `SubtitleGenerator`
+- **File**: `Services/SubtitleGenerator.cs`
+- **Lifetime**: Singleton (registered in `Program.cs`)
+- **Constructor**: `()` — no dependencies
+- **Key methods**:
+  - `GenerateAss(words, totalDuration, websiteUrl) → string` — emits `.ass` file content with 3 styles: `Karaoke` (rolling 3-word yellow highlight), `Hook` (last-2s CTA), `Watermark` (ghost overlay). PlayRes: 1080×1920
+
+#### `SegmentPlanner`
+- **File**: `Services/SegmentPlanner.cs`
+- **Lifetime**: Static class — no DI registration, called directly
+- **Key methods**:
+  - `Plan(words, totalDuration, factContext) → List<VideoSegment>` — (1) splits at sentence boundaries + pauses ≥0.4s; (2) force-splits groups >3.5s; (3) detects brand+model from fact text using `BrandMap`/`ModelNames`; (4) assigns shuffled shot types (`ShuffleShotTypes`); (5) builds queries via `BuildQuery(brand, model, shot)` + fallback queries
+  - `DetectBrand(factText) → string?` — multi-word brands first, then single-word `\b` regex match against `BrandMap` (60+ entries)
+  - `DetectModel(factText) → string?` — same pattern against `ModelNames` (~60 entries)
+  - `ShuffleShotTypes(count) → List<ShotType>` — Fisher-Yates shuffle over `{ExteriorRolling, InteriorPOV, DroneShot, CloseUp}`
+  - `BuildQuery(brand, model, shot) → string` — e.g. `"Ford Mustang exterior rolling b-roll footage"`
+
+#### `FfmpegManager`
+- **File**: `Services/FfmpegManager.cs`
+- **Lifetime**: Singleton (registered in `Program.cs`)
+- **Constructor**: `(storageConnectionString, toolsContainer="poc-tools", blobName="ffmpeg.exe")`
+- **Key methods**:
+  - `EnsureReadyAsync() → string (path)` — double-checked lock; downloads `ffmpeg.exe` from `poc-tools` blob container to `%TEMP%\poc-ffmpeg-bin\ffmpeg.exe` on first call; static `_cachedPath` field serves warm invocations instantly
+- **External call**: Azure Blob Storage (`poc-tools` container, `ffmpeg.exe` blob ~130MB)
+
+#### `YtDlpManager`
+- **File**: `Services/YtDlpManager.cs`
+- **Lifetime**: Singleton (registered in `Program.cs`)
+- **Constructor**: `(storageConnectionString, toolsContainer="poc-tools", blobName="yt-dlp.exe")`
+- **Key methods**:
+  - `EnsureReadyAsync() → string (path)` — same double-checked lock pattern as `FfmpegManager`; downloads `yt-dlp.exe` to `%TEMP%\poc-ytdlp-bin\yt-dlp.exe`
+  - `EnsureCookiesAsync() → string?` — tries to download `youtube-cookies.txt` from `poc-tools`; returns path if found, `null` if blob absent; sentinel `""` prevents re-checking
+- **External call**: Azure Blob Storage (`poc-tools` container, `yt-dlp.exe` blob + optional `youtube-cookies.txt`)
+
+#### `VideoGenerator`
+- **File**: `Services/VideoGenerator.cs`
+- **Lifetime**: Transient — instantiated with `new VideoGenerator(ffmpegPath)` inside `RenderVideoActivity` and `GenerateVideoFunction`; **not registered in DI**
+- **Constructor**: `(ffmpegPath = "ffmpeg")`
+- **Key methods**:
+  - `GenerateAsync(imagePath, audioPath, subtitleFileName, musicPath?, outputPath, duration, fps=30)` — single-image Ken Burns mode (zoompan); overlays ASS subtitles + optional music mix
+  - `GenerateFromClipsAsync(segments, audioPath, subtitlePath, musicPath?, outputPath, totalDuration, fps=30)` — multi-clip mode; normalizes each clip (`setsar=1,fps=N`), chains `xfade=transition=fade:duration=0.30` between clips, overlays `subtitles=` filter (libass with `fontsdir=C:/Windows/Fonts`), optionally mixes background music at 12% volume
+- **External call**: `ffmpeg.exe` process (spawned as child process)
+
+#### `PexelsVideoService`
+- **File**: `Services/PexelsVideoService.cs`
+- **Lifetime**: Transient — instantiated with `new PexelsVideoService(apiKey, ffmpegPath, cacheDir)` inside `GenerateVideoFunction`; **not registered in DI**
+- **Constructor**: `(apiKey, ffmpegPath, cacheDir)`
+- **Key methods**:
+  - `ResolveClipsAsync(segments, outputDir) → List<VideoSegment>` — throttled parallel (max 2 concurrent via `SemaphoreSlim`); per-segment: check trim cache → search Pexels → download → trim via ffmpeg → cache trimmed clip
+  - `SearchPexelsAsync(query) → string (url)` — `GET https://api.pexels.com/videos/search?...&orientation=portrait`; prefers portrait, picks smallest ≥540px wide MP4
+  - `TrimClipAsync(sourcePath, outputPath, duration)` — spawns `ffmpeg.exe`; re-encodes to 720×1280 @30fps, strips audio
+- **External call**: `https://api.pexels.com/videos/search` + `ffmpeg.exe` process
+
+#### `YouTubeVideoService`
+- **File**: `Services/YouTubeVideoService.cs`
+- **Lifetime**: Transient — instantiated with `new YouTubeVideoService(...)` inside `FetchClipActivity.Run()`; **not registered in DI**
+- **Constructor**: `(youTubeApiKey, ytDlpPath, visionService, cookiesPath?, ffmpegPath?)`
+- **Key methods**:
+  - `FetchClipAsync(query, duration, outputPath) → string? (attribution)` — calls `FindBestCandidateAsync()` then `DownloadClipAsync()`; returns attribution string or null
+  - `FindBestCandidateAsync(query) → YouTubeClip?` — `SearchAsync()` → `ScoreTitle()` filter → top-5 checked via `visionService.AnalyzeThumbnailAsync()`; skips watermarked or carless thumbnails
+  - `SearchAsync(query)` — `GET https://www.googleapis.com/youtube/v3/search?videoLicense=creativeCommon&videoDefinition=high&videoDuration=short&maxResults=10`
+  - `ScoreTitle(title)` — returns -1 for titles with skip terms (reviews, vlogs…); +2 for each prefer term (footage, b-roll…)
+  - `DownloadClipAsync(videoId, duration, outputPath) → bool` — spawns `yt-dlp.exe --download-sections "*0-{duration}" --remux-video mp4`; uses `PYINSTALLER_TMPDIR` env var to share extraction cache across parallel instances; cookies arg if available
+- **External calls**: YouTube Data API v3, `yt-dlp.exe` process
+
+#### `ComputerVisionService`
+- **File**: `Services/ComputerVisionService.cs`
+- **Lifetime**: Transient — instantiated with `new ComputerVisionService(endpoint, apiKey)` inside `FetchClipActivity.Run()`; **not registered in DI**
+- **Constructor**: `(endpoint, apiKey)`
+- **External SDK**: `Azure.AI.Vision.ImageAnalysis`
+- **Key methods**:
+  - `AnalyzeThumbnailAsync(videoId) → ThumbnailAnalysis(HasWatermark, HasCar)` — analyzes `https://img.youtube.com/vi/{videoId}/hqdefault.jpg` via `ImageAnalysisClient`; requests `VisualFeatures.Read | VisualFeatures.Tags`
+  - `CheckWatermark(result)` — scans `result.Read.Blocks` for text in the 4 corner zones (30%×20% of 480×360); returns `true` if ≥8 chars found in corners
+  - `CheckCarPresence(result)` — checks `result.Tags.Values` for car-related terms with confidence ≥ 0.60
+- **External call**: Azure Computer Vision REST API
+
+#### `VideoStorageService`
+- **File**: `Services/VideoStorageService.cs`
+- **Lifetime**: Transient — **not registered in DI in `Program.cs`**; used only in `GenerateVideoFunction` (legacy POC)
+- **Constructor**: `(connectionString, containerName)`
+- **Key methods**:
+  - `UploadAsync(filePath, blobName) → string (sasUrl)` — creates container if needed; uploads MP4; returns 48h SAS URL
+
+#### `PexelsApiKeyHolder`
+- **File**: `Services/PexelsApiKeyHolder.cs`
+- **Lifetime**: **Not registered in DI in `Program.cs`**; used only in `GenerateVideoFunction` (legacy POC)
+- **Constructor**: `(apiKey)`
+- **Purpose**: Simple wrapper to hold the Pexels API key string for DI injection
+
+---
+
+### Models Layer — `Models/`
+
+| File | Records / Types |
+|------|----------------|
+| `Models/WordTiming.cs` | `WordTiming(Word, StartSeconds, DurationSeconds)` — computed `EndSeconds` |
+| `Models/VideoSegment.cs` | `VideoSegment(SearchQuery, StartSeconds, EndSeconds, ShotType)` — computed `Duration`; init props `ClipPath`, `FallbackQuery`, `BrandOnlyFallback`; enum `ShotType {ExteriorRolling, InteriorPOV, DroneShot, CloseUp}` |
+| `Models/ActivityModels.cs` | **Inputs**: `StartVideoRequest`, `TtsActivityInput`, `PlanActivityInput`, `FetchClipActivityInput`, `RenderActivityInput` · **Outputs**: `TtsActivityResult`, `FetchClipActivityResult`, `RenderActivityResult`, `ClipSource` |
 
 ---
 
 ## Dependency Injection Registry
 
-### Settings (Options pattern)
+*(Registered in `Program.cs` lines 6–36)*
 
-| Settings Class | Config Section | Registered In |
-|---------------|---------------|---------------|
-| `AISettings` | `AI` | `Program.cs:65` |
-| `KeyVaultSettings` | `KeyVault` | `Program.cs:66` |
-| `StabilityAISettings` | `StabilityAI` | `Program.cs:67` |
-| `TogetherAISettings` | `TogetherAI` | `Program.cs:68` |
-| `WordPressSettings` | `WordPress` | `Program.cs:69` |
-| `WebStoriesSettings` | `WebStories` | `Program.cs:70` |
-| `ScheduleSettings` | `Schedule` | `Program.cs:71` |
-| `SocialMediaSettings` | `SocialMedia` | `Program.cs:72` |
-| `CosmosDbSettings` | `CosmosDb` | `Program.cs:73` |
+| Concrete Type | Lifetime | Factory | Config Keys |
+|---------------|----------|---------|-------------|
+| `FfmpegManager` | Singleton | `new FfmpegManager(cfg["Storage:ConnectionString"])` | `Storage:ConnectionString` |
+| `YtDlpManager` | Singleton | `new YtDlpManager(cfg["Storage:ConnectionString"])` | `Storage:ConnectionString` |
+| `TtsService` | Singleton | `new TtsService(key, region, voice)` | `Speech:Key`, `Speech:Region` (default `"centralindia"`), `Speech:VoiceName` (default `"en-US-AndrewNeural"`) |
+| `SubtitleGenerator` | Singleton | `new SubtitleGenerator()` | — |
+| `IConfiguration` | Singleton | `services.AddSingleton(cfg)` | — |
+| App Insights | — | `AddApplicationInsightsTelemetryWorkerService()` + `ConfigureFunctionsApplicationInsights()` | (auto from APPINSIGHTS_INSTRUMENTATIONKEY) |
 
-### Services
+**Not in DI** (instantiated with `new` at call sites):
 
-| Interface / Abstract | Concrete Implementation | Lifetime | Condition |
-|---------------------|------------------------|----------|-----------|
-| `ISecretProvider` | `LocalSecretProvider` | Singleton | Dev (`isLocal`) |
-| `ISecretProvider` | `KeyVaultSecretProvider` | Singleton | Prod |
-| `Kernel` | Semantic Kernel instance | Singleton | Always (`Program.cs:162`) |
-| `IChatCompletionService` | Extracted from Kernel | Singleton | Always (`Program.cs:163`) |
-| `IContentGenerationService` | `ContentGenerationService` | Singleton | Always (`Program.cs:97`) |
-| `ISeoGenerationService` | `SeoGenerationService` | Singleton | Always (`Program.cs:98`) |
-| `IContentFormatterService` | `ContentFormatterService` | Singleton | Always (`Program.cs:101`) |
-| `IWordPressService` | `WordPressService` | HttpClient | Always (`Program.cs:102`) |
-| `IImageGenerationService` | `CachedImageGenerationService` → `ImageGenerationService` | Singleton | Dev + StabilityAI |
-| `IImageGenerationService` | `CachedImageGenerationService` → `TogetherAIImageGenerationService` | Singleton | Dev + TogetherAI |
-| `IImageGenerationService` | `FallbackImageGenerationService` → [StabilityAI, TogetherAI] | Singleton | Prod (`Program.cs:201`) |
-| `ISocialMediaService` | `TwitterService` | HttpClient+Singleton | Always (`Program.cs:105-107`) |
-| `ITwitterService` | `TwitterService` (same instance) | Singleton | Always (`Program.cs:107`) |
-| `ISocialMediaService` | `FacebookService` | HttpClient+Singleton | Always (`Program.cs:108-109`) |
-| `ISocialMediaService` | `RedditService` | HttpClient+Singleton | Always (`Program.cs:110-111`) |
-| `SocialMediaPublisher` | `SocialMediaPublisher` | Singleton | Always (`Program.cs:112`) |
-| `IPinterestService` | `PinterestService` | HttpClient+Singleton | Always (`Program.cs:115-116`) |
-| `IFactKeywordStore` | `CosmosFactKeywordStore` | Singleton | When Cosmos configured (`Program.cs:247`) |
-| `IFactKeywordStore` | `NullFactKeywordStore` | Singleton | No Cosmos (`Program.cs:252`) |
-| `ISocialMediaQueueStore` | `CosmosSocialMediaQueueStore` | Singleton | When Cosmos configured (`Program.cs:248`) |
-| `ISocialMediaQueueStore` | `NullSocialMediaQueueStore` | Singleton | No Cosmos (`Program.cs:253`) |
-| `CosmosClient` | `CosmosClient` | Singleton | When connection string available (`Program.cs:239`) |
+| Type | Instantiated In | Why |
+|------|----------------|-----|
+| `VideoGenerator` | `RenderVideoActivity.Run()`, `GenerateVideoFunction.Run()` | Needs resolved `ffmpegPath` string at runtime |
+| `PexelsVideoService` | `GenerateVideoFunction.Run()` | Legacy POC — not part of Durable path |
+| `YouTubeVideoService` | `FetchClipActivity.Run()` | Needs per-activity keys from `FetchClipActivityInput` |
+| `ComputerVisionService` | `FetchClipActivity.Run()` | Needs per-activity Vision keys from input |
+| `VideoStorageService` | `GenerateVideoFunction` (injected but ⚠️ not registered) | Legacy POC |
+| `PexelsApiKeyHolder` | `GenerateVideoFunction` (injected but ⚠️ not registered) | Legacy POC |
 
 ---
 
 ## Key Flows
 
-### Flow 1: Daily Car Facts Pipeline (main)
+### Flow 1: Durable Video Generation (primary path)
 
 ```
-CarFactsTimerTrigger.Run()                          [Timer: %Schedule:CronExpression%]
-  → DurableClient.ScheduleNewOrchestrationInstanceAsync("CarFactsOrchestrator")
+POST /api/start-video
+  → HttpStartFunction.Run()
+      reads IConfiguration keys (Storage, Pexels, YouTube, Vision)
+      → client.ScheduleNewOrchestrationInstanceAsync("VideoOrchestrator", OrchestratorInput)
+      ← returns HTTP 202 { jobId, statusUrl }
 
-CarFactsOrchestrator.RunOrchestrator()
+VideoOrchestrator.Run(TaskOrchestrationContext)
   │
-  ├─ Step 1: GenerateRawContentActivity              [LLM retry ×3]
-  │    → ContentGenerationService.GenerateFactsAsync()
-  │      → IChatCompletionService (Azure OpenAI / OpenAI)
-  │        → PromptLoader.LoadSystemPrompt() + LoadUserPrompt()
-  │      → returns RawCarFactsContent (5 CarFacts)
+  ├─ Step 1: ctx.CallActivityAsync<TtsActivityResult>("SynthesizeTtsActivity", TtsActivityInput)
+  │     SynthesizeTtsActivity.Run()
+  │       → TtsService.SynthesizeAsync(fact, wavPath)          [Azure Speech API]
+  │       → SubtitleGenerator.GenerateAss(words, dur, url)
+  │       → BlobContainerClient.UploadAsync(wav)               [Azure Blob: poc-jobs/{jobId}/narration.wav]
+  │       ← TtsActivityResult(audioUrl, assText, words, totalDuration)
   │
-  ├─ Shuffle facts (deterministic GUID seed)
+  ├─ Step 2: ctx.CallActivityAsync<List<VideoSegment>>("PlanSegmentsActivity", PlanActivityInput)
+  │     PlanSegmentsActivity.Run()
+  │       → SegmentPlanner.Plan(words, totalDuration, fact)    [CPU only — no I/O]
+  │         splits at sentence boundaries/pauses → force-splits >3.5s
+  │         detects brand+model → assigns shuffled shot types
+  │         builds SearchQuery + FallbackQuery + BrandOnlyFallback per segment
+  │       ← List<VideoSegment>
   │
-  ├─ Step 2+3 (parallel):
-  │  ├─ GenerateSeoActivity                           [LLM retry ×3]
-  │  │    → SeoGenerationService.GenerateSeoAsync()
-  │  │      → IChatCompletionService
-  │  │      → returns SeoMetadata
-  │  │
-  │  └─ GenerateAllImagesActivity                     [Image retry ×3]
-  │       → IImageGenerationService.GenerateImagesAsync()
-  │         → StabilityAI API (or TogetherAI fallback → empty list)
-  │         → returns List<GeneratedImage>
+  ├─ Step 3: Fan-out — Task.WhenAll(segments.Select(FetchClipActivity))
+  │     FetchClipActivity.Run()  [× N, all parallel]
+  │       ├─ Path A: YouTube CC
+  │       │     ytDlpManager.EnsureReadyAsync()               [download yt-dlp.exe on cold start]
+  │       │     ytDlpManager.EnsureCookiesAsync()
+  │       │     new ComputerVisionService(endpoint, apiKey)
+  │       │     new YouTubeVideoService(ytApiKey, ytDlpPath, visionSvc, cookies, ffmpegPath)
+  │       │       → YouTubeVideoService.FetchClipAsync(query, duration, sourceTmp)
+  │       │           SearchAsync()                           [YouTube Data API v3]
+  │       │           ScoreTitle() filter
+  │       │           visionService.AnalyzeThumbnailAsync()   [Azure Computer Vision API]
+  │       │           DownloadClipAsync()                     [yt-dlp.exe process]
+  │       │     TrimClipAsync(ffmpegPath, source, trimmed)    [ffmpeg.exe process]
+  │       │
+  │       ├─ Path B: Pexels fallback (if YouTube fails/finds nothing)
+  │       │     SearchPexelsWithFallbackAsync()               [Pexels REST API — up to 4 tiers]
+  │       │     Http.GetAsync(videoUrl)                       [direct video download]
+  │       │     TrimClipAsync(ffmpegPath, source, trimmed)    [ffmpeg.exe process]
+  │       │
+  │       └─ UploadClipAsync()                                [Azure Blob: poc-jobs/{jobId}/clip_NN.mp4]
+  │         ← FetchClipActivityResult(index, clipUrl, attribution?)
   │
-  ├─ Step 3.5: FindBacklinksActivity                  [best-effort]
-  │    → IFactKeywordStore.FindRelatedFactsAsync()    [Cosmos DB query]
-  │    → IFactKeywordStore.FindRelatedPostCandidatesAsync()
-  │    → returns BacklinksResult
-  │
-  ├─ Step 4: CreateDraftPostActivity
-  │    → WordPressService.CreateDraftPostAsync()
-  │      → POST wordpress.com/rest/v1.1/sites/{id}/posts/new (status=draft)
-  │
-  ├─ Step 5: Fan-out UploadSingleImageActivity ×N     [parallel]
-  │    → WordPressService.UploadSingleImageAsync()
-  │      → POST wordpress.com/.../media/new (multipart)
-  │
-  ├─ Step 6: FormatAndPublishActivity
-  │    → ContentFormatterService.FormatPostHtml()      [builds Schema.org HTML]
-  │    → WordPressService.UpdateAndPublishPostAsync()
-  │      → POST wordpress.com/.../posts/{id} (status=publish)
-  │
-  ├─ Step 7 (parallel, best-effort):
-  │  ├─ SocialMediaOrchestrator (sub-orchestrator)     → see Flow 2
-  │  └─ StoreFactKeywordsActivity
-  │       → IFactKeywordStore.UpsertFactsAsync()       [Cosmos DB upsert]
-  │
-  └─ Step 8: CreateWebStoryActivity                   [if enabled, best-effort]
-       → WordPressService.CreateWebStoryAsync()
+  └─ Step 4: ctx.CallActivityAsync<RenderActivityResult>("RenderVideoActivity", RenderActivityInput)
+        RenderVideoActivity.Run()
+          → ffmpegManager.EnsureReadyAsync()
+          → DownloadAsync(audioUrl)                           [SAS URL → local narration.wav]
+          → File.WriteAllTextAsync(subtitlesAss)
+          → DownloadAsync(clipUrl) × N                        [SAS URLs → local clip_NN.mp4]
+          → new VideoGenerator(ffmpegPath)
+          → generator.GenerateFromClipsAsync(segments, audio, subtitles, null, output, dur)
+                                                              [ffmpeg.exe: xfade + libass + AAC encode]
+          → UploadVideoAsync()                                [Azure Blob: poc-videos/carfact-{ts}-{jobId}.mp4]
+          ← RenderActivityResult(videoUrl, durationSecs, clipCount, clipSources)
+
+GET /api/status/{jobId}
+  → StatusFunction.Run()
+      → client.GetInstanceAsync(jobId)
+      if Completed → deserialize output as RenderActivityResult
+      ← { jobId, status, videoUrl, durationSecs, clipCount, clips[] }
 ```
 
-### Flow 2: Social Media Content Queue Generation
+### Flow 2: Log Inspection
 
 ```
-SocialMediaOrchestrator.Run()                        [sub-orchestrator from Flow 1]
-  │
-  ├─ Step 1 (parallel):
-  │  ├─ GenerateTweetFactsActivity
-  │  │    → IChatCompletionService
-  │  │      → PromptLoader.LoadTweetFactsSystemPrompt() + UserPrompt()
-  │  │    → returns List<TweetFactResult> (N standalone fact tweets)
-  │  │
-  │  └─ GenerateTweetLinkActivity
-  │       → IChatCompletionService
-  │         → PromptLoader.LoadTweetLinkPrompt()
-  │       → returns List<TweetLinkResult> (link promotion tweets)
-  │
-  ├─ Step 2: GetEnabledPlatformsActivity
-  │    → SocialMediaPublisher.GetEnabledPlatformNames()
-  │
-  └─ Step 3: StoreSocialMediaQueueActivity
-       → UsPostingScheduler.GenerateSchedule()         [US time windows with jitter]
-       → UsPostingScheduler.GenerateInterspersedSlots() [reply placeholders]
-       → UsPostingScheduler.GenerateClubbedLikeSlots()  [like clusters]
-       → ISocialMediaQueueStore.AddItemsAsync()         [Cosmos DB: social-media-queue]
+GET /api/logs/{jobId}
+  → LogsFunction.Run()
+      reads AppInsights:ApiKey from IConfiguration
+      → GET https://api.applicationinsights.io/v1/apps/{AppInsightsAppId}/query
+             KQL: traces | where message has '{jobId}' | order by timestamp asc
+      ← { jobId, totalLogLines, clipActivity[], allLogs[] }
 ```
 
-### Flow 3: Scheduled Social Media Posting
+### Flow 3: Legacy Synchronous Path *(POC only — ⚠️ DI broken for VideoStorageService / PexelsApiKeyHolder)*
 
 ```
-SocialMediaPostingTrigger.Run()                      [Timer: %SocialMedia:PostingCronExpression%]
-  → DurableClient.ScheduleNewOrchestrationInstanceAsync("ScheduledPostingOrchestrator")
-
-ScheduledPostingOrchestrator.Run()
-  ├─ GetPendingScheduledItemsActivity
-  │    → ISocialMediaQueueStore.GetPendingScheduledItemsAsync()  [Cosmos DB query]
-  │
-  └─ Fan-out: ScheduledPostOrchestrator ×N             [one per queue item]
-
-ScheduledPostOrchestrator.Run(ScheduledPostInput)
-  ├─ await context.CreateTimer(scheduledAtUtc)          [durable timer sleep]
-  │
-  ├─ IF activity="reply" + no content:
-  │    → GenerateTweetReplyActivity (up to 3 attempts)
-  │      → ITwitterService.SearchRecentTweetsAsync()    [Twitter API v2 search]
-  │      → IChatCompletionService                       [generate reply via AI]
-  │    → ExecuteScheduledPostActivity
-  │      → ITwitterService.ReplyToTweetAsync()          [POST twitter.com/2/tweets]
-  │
-  ├─ IF activity="like" + no target:
-  │    → GenerateTweetLikeActivity (up to 3 attempts)
-  │      → ITwitterService.SearchRecentTweetsAsync()
-  │    → ExecuteScheduledPostActivity
-  │      → ITwitterService.LikeTweetAsync()             [POST twitter.com/2/users/{id}/likes]
-  │
-  └─ ELSE (regular post):
-       → ExecuteScheduledPostActivity
-         → SocialMediaPublisher.PublishRawAsync()        [dispatches to platform service]
-```
-
-### Flow 4: Pinterest Pin Posting
-
-```
-PinterestPostingTrigger.Run()                        [Timer: %SocialMedia:PinterestPostingCronExpression%]
-  → (guard: PinterestEnabled?)
-  → DurableClient.ScheduleNewOrchestrationInstanceAsync("PinterestPostingOrchestrator")
-
-PinterestPostingOrchestrator.Run()
-  ├─ Step 1: SelectPinterestFactActivity
-  │    → IFactKeywordStore.GetFactsForPinterestAsync() [Cosmos: ORDER BY pinterestCount ASC]
-  │    → PinterestBoardTaxonomy.SelectBoard()           [rule-based keyword → board routing]
-  │    → returns PinterestFactSelection
-  │
-  ├─ Step 2: GeneratePinContentActivity
-  │    → IChatCompletionService                         [generate pin title/description]
-  │    → returns PinContent
-  │
-  ├─ Step 3: CreatePinterestPinActivity
-  │    → IPinterestService.GetOrCreateBoardAsync()      [Pinterest API v5: boards]
-  │    → IPinterestService.CreatePinAsync()             [Pinterest API v5: pins]
-  │    → returns pinId
-  │
-  └─ Step 4: UpdatePinterestTrackingActivity
-       → IFactKeywordStore.IncrementPinterestCountAsync() [Cosmos: pinterestCount++]
-```
-
-### Flow 5: Tweet Reply Generation (on-demand)
-
-```
-TweetReplyTrigger.Run()                              [HTTP POST, Function-level auth]
-  → DurableClient.ScheduleNewOrchestrationInstanceAsync("TweetReplyOrchestrator")
-
-TweetReplyOrchestrator.Run()
-  ├─ Step 1: GenerateTweetReplyActivity
-  │    → ITwitterService.SearchRecentTweetsAsync()      [search "car" tweets, filter replyable]
-  │    → IChatCompletionService                         [generate contextual reply]
-  │      → PromptLoader.LoadTweetReplySystemPrompt() + UserPrompt()
-  │    → returns TweetReplyResult
-  │
-  └─ Step 2: StoreTweetReplyQueueActivity
-       → ISocialMediaQueueStore.AddItemsAsync()          [queue for scheduled execution]
+POST|GET /api/GenerateVideo
+  → GenerateVideoFunction.Run()
+      ffmpegManager.EnsureReadyAsync()
+      ttsService.SynthesizeAsync(fact, wavPath)
+      subtitleGenerator.GenerateAss(words, dur, url)
+      SegmentPlanner.Plan(words, dur, fact)
+      new PexelsVideoService(apiKey, ffmpegPath, cacheDir)
+        → ResolveClipsAsync(segments, tempDir)                [Pexels API + ffmpeg trim; max 2 concurrent]
+      new VideoGenerator(ffmpegPath)
+        → GenerateFromClipsAsync(clips, audio, subtitles, null, output, dur)
+      storageService.UploadAsync(outputPath, blobName)         [Azure Blob]
+      ← { videoUrl, durationSeconds, wordCount, clipCount }
 ```
 
 ---
@@ -395,92 +363,83 @@ TweetReplyOrchestrator.Run()
 
 ```mermaid
 graph TD
-    subgraph Triggers["⏰ Triggers (Entry Points)"]
-        T1["CarFactsTimerTrigger<br/>(Timer)"]
-        T2["SocialMediaPostingTrigger<br/>(Timer)"]
-        T3["PinterestPostingTrigger<br/>(Timer)"]
-        T4["TweetReplyTrigger<br/>(HTTP POST)"]
-    end
+  subgraph HTTP["HTTP Layer (Functions/)"]
+    HSF["HttpStartFunction\nPOST /api/start-video"]
+    SF["StatusFunction\nGET /api/status/{jobId}"]
+    LF["LogsFunction\nGET /api/logs/{jobId}"]
+    GVF["GenerateVideoFunction\nPOST /api/GenerateVideo\n⚠️ legacy POC"]
+  end
 
-    subgraph Orchestrators["🎭 Durable Orchestrators"]
-        O1["CarFactsOrchestrator"]
-        O2["SocialMediaOrchestrator"]
-        O3["ScheduledPostingOrchestrator"]
-        O4["ScheduledPostOrchestrator"]
-        O5["PinterestPostingOrchestrator"]
-        O6["TweetReplyOrchestrator"]
-    end
+  subgraph Durable["Durable Orchestration (Functions/)"]
+    VO["VideoOrchestrator"]
+  end
 
-    subgraph Activities["⚙️ Durable Activities (28)"]
-        A1["Content Gen Activities"]
-        A2["Image Gen Activities"]
-        A3["WordPress Activities"]
-        A4["Social Media Activities"]
-        A5["Data Store Activities"]
-    end
+  subgraph Activities["Activity Layer (Activities/)"]
+    TTS["SynthesizeTtsActivity\n① TTS + subtitles"]
+    PS["PlanSegmentsActivity\n② Segment planning"]
+    FC["FetchClipActivity\n③ Fetch clip (fan-out)"]
+    RV["RenderVideoActivity\n④ FFmpeg render"]
+  end
 
-    subgraph Services["🔧 Service Layer"]
-        S1["ContentGenerationService"]
-        S2["SeoGenerationService"]
-        S3["ContentFormatterService"]
-        S4["ImageGenerationService<br/>+ Fallback + Cache"]
-        S5["WordPressService"]
-        S6["SocialMediaPublisher"]
-        S7["TwitterService"]
-        S8["PinterestService"]
-    end
+  subgraph Services["Service Layer (Services/)"]
+    TtsSvc["TtsService\n(Azure Speech SDK)"]
+    SubGen["SubtitleGenerator"]
+    SegPlan["SegmentPlanner\n(static)"]
+    FfmpegMgr["FfmpegManager\n(binary download)"]
+    YtDlpMgr["YtDlpManager\n(binary download)"]
+    VidGen["VideoGenerator\n(ffmpeg process)"]
+    PexelsSvc["PexelsVideoService\n(Pexels API)"]
+    YtSvc["YouTubeVideoService\n(YT API + yt-dlp)"]
+    CVSvc["ComputerVisionService\n(Azure CV API)"]
+    StorSvc["VideoStorageService\n(Azure Blob)"]
+  end
 
-    subgraph Data["💾 Data Stores"]
-        D1["Cosmos DB<br/>fact-keywords"]
-        D2["Cosmos DB<br/>social-media-queue"]
-    end
+  subgraph External["External Systems"]
+    AzSpeech["Azure Speech API"]
+    AzBlob["Azure Blob Storage\n(poc-jobs, poc-videos, poc-tools)"]
+    AzCV["Azure Computer Vision API"]
+    PexelsAPI["Pexels Video API"]
+    YtAPI["YouTube Data API v3"]
+    YtDlpBin["yt-dlp.exe process"]
+    FfmpegBin["ffmpeg.exe process"]
+    AppInsights["App Insights REST API"]
+  end
 
-    subgraph External["🌐 External APIs"]
-        E1["Azure OpenAI /<br/>OpenAI (LLM)"]
-        E2["Stability AI /<br/>Together AI (Images)"]
-        E3["WordPress.com<br/>REST API"]
-        E4["Twitter/X API v2"]
-        E5["Pinterest API v5"]
-        E6["Facebook Graph API"]
-        E7["Reddit API"]
-    end
+  HSF -->|schedules| VO
+  SF -->|polls| VO
+  LF --> AppInsights
 
-    subgraph Infra["🔐 Infrastructure"]
-        I1["Key Vault /<br/>Local Secrets"]
-        I2["Azure App Config"]
-        I3["App Insights /<br/>Serilog"]
-    end
+  VO -->|Step 1| TTS
+  VO -->|Step 2| PS
+  VO -->|Step 3 fan-out| FC
+  VO -->|Step 4| RV
 
-    T1 --> O1
-    T2 --> O3
-    T3 --> O5
-    T4 --> O6
+  TTS --> TtsSvc --> AzSpeech
+  TTS --> SubGen
+  TTS --> AzBlob
 
-    O1 --> A1 & A2 & A3 & A5
-    O1 --> O2
-    O2 --> A4 & A5
-    O3 --> A5
-    O3 --> O4
-    O4 --> A4
-    O5 --> A4 & A5
-    O6 --> A4 & A5
+  PS --> SegPlan
 
-    A1 --> S1 & S2
-    A2 --> S4
-    A3 --> S3 & S5
-    A4 --> S6 & S7 & S8
-    A5 --> D1 & D2
+  FC --> FfmpegMgr --> AzBlob
+  FC --> YtDlpMgr --> AzBlob
+  FC --> YtSvc --> YtAPI
+  FC --> YtSvc --> YtDlpBin
+  FC --> CVSvc --> AzCV
+  FC --> PexelsAPI
+  FC --> FfmpegBin
+  FC --> AzBlob
 
-    S1 & S2 --> E1
-    S4 --> E2
-    S5 --> E3
-    S7 --> E4
-    S8 --> E5
-    S6 --> S7
-    S6 -.-> E6 & E7
+  RV --> FfmpegMgr
+  RV --> VidGen --> FfmpegBin
+  RV --> AzBlob
 
-    S5 & S7 & S8 --> I1
-    S4 --> I1
+  GVF --> TtsSvc
+  GVF --> SubGen
+  GVF --> SegPlan
+  GVF --> PexelsSvc --> PexelsAPI
+  GVF --> PexelsSvc --> FfmpegBin
+  GVF --> VidGen
+  GVF --> StorSvc --> AzBlob
 ```
 
 ---
@@ -489,52 +448,29 @@ graph TD
 
 | Concern | Implementation | Applied Via |
 |---------|---------------|-------------|
-| Logging | Serilog (local file) + Application Insights (Azure) | `Program.cs:13-27` host builder + DI |
-| Secrets | Azure Key Vault (prod) / `IConfiguration` (dev) | `ISecretProvider` abstraction, env-conditional DI |
-| Configuration | Azure App Configuration + `IOptions<T>` pattern | `Program.cs:30-42` + `RegisterSettings()` |
-| Retry / Resilience | Durable Functions `RetryPolicy` per activity type | Orchestrators (LLM ×3, Image ×3, WordPress ×3, Social ×2) |
-| Image Fallback | `FallbackImageGenerationService` decorator chain | DI in prod: StabilityAI → TogetherAI → empty |
-| Image Caching | `CachedImageGenerationService` decorator | DI in dev: wraps real provider |
-| Rate Limiting | Sequential image gen + 2s delay + exponential backoff on 429 | `ImageGenerationService.cs:31,96-115` |
-| Scheduling | `UsPostingScheduler` generates US-friendly times with jitter | Social queue storage activities |
-| Content TTL | `SocialMediaQueueItem.Ttl = 172800` (48h) | Cosmos DB auto-delete |
-| Schema.org SEO | Structured data markup in HTML output | `ContentFormatterService` |
-| Board Routing | `PinterestBoardTaxonomy` keyword-based board selection | `SelectPinterestFactActivity` |
+| Telemetry / Logging | Application Insights + `ILogger<T>` | `AddApplicationInsightsTelemetryWorkerService()` + `ConfigureFunctionsApplicationInsights()` in Program.cs; `[JobId]` prefix on all log messages |
+| Authorization | Function-level API keys | `AuthorizationLevel.Function` on all HTTP triggers |
+| Binary caching | Static fields in `FfmpegManager` / `YtDlpManager` | Double-checked lock + `static string? _cachedPath`; warm invocations skip blob download |
+| Temp isolation | Per-job/activity temp directories | `Path.Combine(Path.GetTempPath(), "tts-{jobId}")` etc.; `finally { Directory.Delete(tempDir, recursive: true) }` cleanup |
+| Blob SAS URLs | Azure SAS tokens | 4h for intermediate blobs (audio, clips); 48h for final video |
+| Clip fallback strategy | 4-tier Pexels + YouTube CC | `FetchClipActivity`: YouTube CC first → Pexels primary query → FallbackQuery → BrandOnlyFallback → generic `"car driving road footage"` |
+| Concurrency control | `SemaphoreSlim` | `FfmpegManager.Lock` (1,1), `YtDlpManager.Lock` (1,1), `PexelsVideoService.DownloadSem` (2,2) |
+| Subtitle format | ASS (Advanced SubStation Alpha) | `SubtitleGenerator.GenerateAss()` — 1080×1920 PlayRes, Arial 86pt, karaoke rolling-3-word yellow highlight |
+| YouTube bot detection bypass | Cookies + multi-client args | `YtDlpManager.EnsureCookiesAsync()` + `--extractor-args youtube:player_client=mweb,tv_embedded,ios,android` |
+| Cost guard (CV skip) | Optimistic fallback on CV failure | `ComputerVisionService.AnalyzeThumbnailAsync()` returns `HasWatermark=false, HasCar=true` on exception |
 
 ---
 
-## Data Flow Summary
+## Configuration Reference
 
-```
-Daily Timer
-    ↓
-[Azure OpenAI] → 5 CarFacts + SeoMetadata
-    ↓
-[Stability AI / Together AI] → 5 Images
-    ↓
-[Cosmos DB: fact-keywords] ← backlink lookup → BacklinkSuggestions
-    ↓
-[WordPress.com] → Draft → Upload Images → Format HTML → Publish
-    ↓
-[Azure OpenAI] → Tweet Facts + Link Tweets + Pin Content
-    ↓
-[Cosmos DB: social-media-queue] ← scheduled items with US-friendly times
-    ↓
-Posting Timer (daily)
-    ↓
-[Durable Timers] → sleep until scheduled time
-    ↓
-[Twitter/Pinterest/Facebook/Reddit APIs] → execute post/reply/like
-```
-
----
-
-## Notes
-
-- **Single .csproj**: All code lives in `src/CarFacts.Functions/` — no multi-project solution
-- **Test project**: `tests/CarFacts.Functions.Tests/` exists with tests for Functions, Helpers, and Services
-- **Infrastructure**: `infra/azuredeploy.json` ARM template for Azure deployment
-- **28 activity functions** in `Functions/Activities/` — each is a thin wrapper calling one service method
-- **Orchestrator replay safety**: All orchestrators use `context.CreateReplaySafeLogger()` and deterministic operations
-- **Social media platforms**: Twitter is fully active; Facebook and Reddit are registered but controlled by per-platform `Enabled` toggles
-- **Pinterest board taxonomy**: 10 keyword-based boards + 1 default, prevents LLM-generated board sprawl via `PinterestBoardTaxonomy`
+| Key | Used By | Default / Required |
+|-----|---------|-------------------|
+| `Storage:ConnectionString` | `FfmpegManager`, `YtDlpManager`, `HttpStartFunction` (→ orchestrator) | **Required** |
+| `Speech:Key` | `TtsService` | **Required** |
+| `Speech:Region` | `TtsService` | `"centralindia"` |
+| `Speech:VoiceName` | `TtsService` | `"en-US-AndrewNeural"` |
+| `Pexels:ApiKey` | `HttpStartFunction` (→ `FetchClipActivityInput`) | **Required** |
+| `YouTube:ApiKey` | `HttpStartFunction` (→ `FetchClipActivityInput`) | Optional — Pexels-only if empty |
+| `Vision:Endpoint` | `HttpStartFunction` (→ `FetchClipActivityInput`) | Optional — CV check skipped if empty |
+| `Vision:ApiKey` | `HttpStartFunction` (→ `FetchClipActivityInput`) | Optional |
+| `AppInsights:ApiKey` | `LogsFunction` | Optional — logs endpoint returns guidance if absent |
