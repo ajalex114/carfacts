@@ -1,0 +1,18 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "excludedTypes": "Request"
+      }
+    }
+  },
+  "functionTimeout": "00:10:00",
+  "durableTask": {
+    "hubName": "CarFactsVideoHub",
+    "storageProvider": {
+      "type": "azure_storage"
+    }
+  }
+}

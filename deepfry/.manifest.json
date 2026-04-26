@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "generatedAt": "2025-07-24T06:42:00Z",
+  "gitCommit": "b9be8dc1501e31ea9edfa99c938527818fa2aca5",
+  "gitBranch": "master",
+  "gitDirty": false,
+  "treeHash": "d87df4005513cbf96eaf612e8b01110d66096b4f",
+  "fileCount": 127,
+  "filesByExtension": {
+    ".cs": 94,
+    ".md": 14,
+    ".txt": 11,
+    ".json": 3,
+    ".csproj": 2,
+    ".gitignore": 1,
+    ".sln": 1,
+    ".zip": 1
+  },
+  "mode": "full",
+  "agents": {
+    "dependency-analyzer": "success",
+    "code-grapher": "success",
+    "security-analyzer": "success",
+    "connection-analyzer": "success",
+    "log-analyzer": "success",
+    "test-analyzer": "success",
+    "cost-analyzer": "success",
+    "freshness-tracker": "success",
+    "architect": "success",
+    "summarizer": "success"
+  },
+  "completedAt": "2026-04-24T06:10:00Z"
+}

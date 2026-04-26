@@ -26,3 +26,14 @@ cache/
 publish/
 deploy.zip
 publish.zip
+publish_out/
+
+# Large binary/media files — never commit
+*.mp4
+*.mp3
+*.wav
+*.zip
+*.exe
+*.so
+*.dylib
+*.dll

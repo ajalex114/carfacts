@@ -1,3 +1,5 @@
+<!-- deepfry:commit=b9be8dc1501e31ea9edfa99c938527818fa2aca5 agent=dependency-analyzer timestamp=2025-07-17T12:00:00Z -->
+
 # Dependency Analysis — CarFacts
 
 > Auto-generated dependency inventory for the `CarFacts` Azure Functions project.
@@ -231,6 +233,6 @@
 | **Azure cloud services** | 6 (Functions, Cosmos DB, Key Vault, App Insights + Log Analytics, Storage, App Configuration) |
 | **External API services** | 7 (Azure OpenAI, OpenAI, Stability AI, Together AI, WordPress, Twitter, Facebook, Reddit, Pinterest — 9 total endpoints, 7 distinct services) |
 | **Cosmos DB containers** | 2 (`fact-keywords`, `social-media-queue`) |
-| **Key Vault secrets** | 14 declared in `SecretNames.cs` |
+| **Key Vault secrets** | 16 declared in `SecretNames.cs` |
 | **ARM-provisioned resources** | 7 |
 | **Detected duplicates / inconsistencies** | 4 (image providers ✅, text providers ✅, logging ⚠️, Cosmos container config ⚠️) |
