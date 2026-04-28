@@ -12,99 +12,75 @@ namespace CarFacts.VideoFunction.Activities;
 
 /// <summary>
 /// Activity 3 — Handles exactly ONE clip:
-///   1. Try YouTube CC (brand-aware, shot-type-filtered, watermark+car checks via CV)
-///   2. Fall back to Pexels if YouTube fails or finds no clean candidate
-///   3. Trim with ffmpeg → upload trimmed clip to blob → return SAS URL + attribution
+///   1. Pick a random scenic road/travel query
+///   2. Search Pexels for that query (portrait orientation)
+///   3. Download the video, apply 2× speed via ffmpeg, trim to required duration
+///   4. Upload trimmed clip to blob → return SAS URL
 /// Fan-out: orchestrator fires one instance per segment, all running in parallel.
 /// </summary>
 public class FetchClipActivity(
     FfmpegManager ffmpegManager,
-    YtDlpManager ytDlpManager,
+    YtDlpManager ytDlpManager,   // kept for DI compatibility — not used in scenic mode
     ILogger<FetchClipActivity> logger)
 {
     private static readonly HttpClient Http = new();
+    private static int _cleanupDone = 0;
+
+    // Scenic road/travel queries — one is chosen at random per clip
+    private static readonly string[] ScenicQueries =
+    [
+        "exotic road trip scenic route",
+        "mountain road aerial view travel",
+        "island road trip drone shot",
+        "switzerland scenic road trip drone",
+        "iceland ring road drone",
+    ];
 
     [Function(nameof(FetchClipActivity))]
     public async Task<FetchClipActivityResult> Run(
         [ActivityTrigger] FetchClipActivityInput input,
         FunctionContext ctx)
     {
-        logger.LogInformation("[{JobId}] FetchClip[{Index}] [{Shot}]: query='{Query}'",
-            input.JobId, input.Index, input.ShotType, input.SearchQuery);
+        CleanupOldTempDirsOnce(input.JobId, logger);
 
         var ffmpegPath = await ffmpegManager.EnsureReadyAsync();
         var tempDir    = Path.Combine(Path.GetTempPath(), $"clip-{input.JobId}-{input.Index}");
         Directory.CreateDirectory(tempDir);
 
+        // Each clip index gets a deterministic-but-varied scenic query
+        var query = ScenicQueries[input.Index % ScenicQueries.Length];
+        logger.LogInformation("[{JobId}] FetchClip[{Index}]: scenic query='{Query}' duration={Dur:F1}s",
+            input.JobId, input.Index, query, input.Duration);
+
         try
         {
-            var trimmed = Path.Combine(tempDir, "clip.mp4");
-            string? attribution = null;
+            var trimmed   = Path.Combine(tempDir, "clip.mp4");
+            var sourceTmp = Path.Combine(tempDir, "pexels-source.mp4");
 
-            // ── Attempt 1: YouTube CC ────────────────────────────────────────
-            if (!string.IsNullOrEmpty(input.YouTubeApiKey))
-            {
-                try
-                {
-                    var ytDlpPath   = await ytDlpManager.EnsureReadyAsync();
-                    var cookiesPath = await ytDlpManager.EnsureCookiesAsync();
-                    var visionSvc   = new ComputerVisionService(input.VisionEndpoint, input.VisionApiKey);
-                    var youtubeSvc  = new YouTubeVideoService(input.YouTubeApiKey, ytDlpPath, visionSvc, cookiesPath, ffmpegPath, input.ProxyUrl);
+            // Search Pexels for the scenic query
+            var videoUrl = await SearchPexelsAsync(query, input.PexelsApiKey);
 
-                    var sourceTmp   = Path.Combine(tempDir, "yt-source.mp4");
-                    attribution     = await youtubeSvc.FetchClipAsync(input.SearchQuery, input.Duration + 1.5, sourceTmp);
+            // Download
+            using var resp = await Http.GetAsync(videoUrl, HttpCompletionOption.ResponseHeadersRead);
+            resp.EnsureSuccessStatusCode();
+            await using (var stream = await resp.Content.ReadAsStreamAsync())
+            await using (var file   = File.Create(sourceTmp))
+                await stream.CopyToAsync(file);
 
-                    if (attribution != null && File.Exists(sourceTmp))
-                    {
-                        await TrimClipAsync(ffmpegPath, sourceTmp, trimmed, input.Duration);
-                        logger.LogInformation("[{JobId}] FetchClip[{Index}]: used YouTube CC — {Attr}",
-                            input.JobId, input.Index, attribution);
-                    }
-                    else
-                    {
-                        attribution = null;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning("[{JobId}] FetchClip[{Index}]: YouTube attempt failed: {Msg}",
-                        input.JobId, input.Index, ex.Message);
-                    attribution = null;
-                }
-            }
+            var sizeMb = new FileInfo(sourceTmp).Length / 1024.0 / 1024.0;
+            logger.LogInformation("[{JobId}] FetchClip[{Index}]: downloaded {MB:F1} MB", input.JobId, input.Index, sizeMb);
 
-            // ── Attempt 2: Pexels fallback ───────────────────────────────────
-            if (!File.Exists(trimmed))
-            {
-                logger.LogInformation("[{JobId}] FetchClip[{Index}]: falling back to Pexels",
-                    input.JobId, input.Index);
-
-                var sourceTmp = Path.Combine(tempDir, "pexels-source.mp4");
-
-                // Three-tier fallback: model-specific → brand fallback → generic car
-                var videoUrl = await SearchPexelsWithFallbackAsync(
-                    input.SearchQuery,
-                    input.FallbackQuery,
-                    input.BrandOnlyFallback,
-                    input.PexelsApiKey,
-                    logger, input.JobId, input.Index);
-
-                using var resp = await Http.GetAsync(videoUrl, HttpCompletionOption.ResponseHeadersRead);
-                resp.EnsureSuccessStatusCode();
-                await using (var stream = await resp.Content.ReadAsStreamAsync())
-                await using (var file   = File.Create(sourceTmp))
-                    await stream.CopyToAsync(file);
-
-                await TrimClipAsync(ffmpegPath, sourceTmp, trimmed, input.Duration);
-            }
+            // Trim + 2× speed: we need `duration` seconds of output;
+            // at 2× speed that requires `duration * 2` seconds of source footage.
+            await TrimClipAt2xAsync(ffmpegPath, sourceTmp, trimmed, input.Duration);
 
             // ── Upload to blob ───────────────────────────────────────────────
             var blobPath = $"poc-jobs/{input.JobId}/clip_{input.Index:D2}.mp4";
             var clipUrl  = await UploadClipAsync(input.StorageConnectionString, trimmed, blobPath);
 
-            logger.LogInformation("[{JobId}] FetchClip[{Index}]: done → {Url}",
-                input.JobId, input.Index, clipUrl[..60]);
-            return new FetchClipActivityResult(input.Index, clipUrl, attribution);
+            logger.LogInformation("[{JobId}] FetchClip[{Index}]: done (scenic/{Query}) → {Url}",
+                input.JobId, input.Index, query, clipUrl[..60]);
+            return new FetchClipActivityResult(input.Index, clipUrl, $"Pexels scenic: {query}");
         }
         catch (Exception ex)
         {
@@ -124,7 +100,7 @@ public class FetchClipActivity(
     {
         var req = new HttpRequestMessage(
             HttpMethod.Get,
-            $"https://api.pexels.com/videos/search?query={Uri.EscapeDataString(query)}&per_page=15&orientation=portrait");
+            $"https://api.pexels.com/videos/search?query={Uri.EscapeDataString(query)}&per_page=10&orientation=portrait");
         req.Headers.Authorization = new AuthenticationHeaderValue(apiKey);
 
         var resp   = await Http.SendAsync(req);
@@ -132,19 +108,21 @@ public class FetchClipActivity(
         var result = await resp.Content.ReadFromJsonAsync<PexelsSearchResult>()
             ?? throw new InvalidOperationException("Empty Pexels response");
 
-        // Score candidates: prefer portrait HD clips in the 5–60s range
+        // Pick the best portrait video — prefer 30–60s so at 2× it's 15–30s per clip
         var best = result.Videos?
-            .Where(v => v.Height > v.Width)   // portrait only
-            .Select(v => (Video: v, Score: ScorePexelsVideo(v)))
-            .OrderByDescending(x => x.Score)
-            .FirstOrDefault().Video
+            .Where(v => v.Height > v.Width && v.Duration >= 10)
+            .OrderByDescending(v => v.Duration >= 30 && v.Duration <= 90 ? 1 : 0)
+            .FirstOrDefault()
             ?? result.Videos?.FirstOrDefault()
             ?? throw new InvalidOperationException($"No Pexels results for '{query}'");
 
+        // Prefer 540–720px wide files (safe disk size on Consumption plan)
         var file = best.VideoFiles?
-            .Where(f => f.FileType == "video/mp4" && f.Width >= 540)
-            .OrderBy(f => f.Width * f.Height)   // smallest that meets min quality — saves disk on Consumption plan
+            .Where(f => f.FileType == "video/mp4" && f.Width >= 540 && f.Width <= 720)
+            .OrderBy(f => f.Width * f.Height)
             .FirstOrDefault()
+            ?? best.VideoFiles?.Where(f => f.FileType == "video/mp4" && f.Width >= 540)
+                   .OrderBy(f => f.Width * f.Height).FirstOrDefault()
             ?? best.VideoFiles?.Where(f => f.FileType == "video/mp4")
                    .OrderBy(f => f.Width * f.Height).FirstOrDefault()
             ?? throw new InvalidOperationException("No MP4 found");
@@ -153,71 +131,50 @@ public class FetchClipActivity(
     }
 
     /// <summary>
-    /// Scores a Pexels video for suitability as a car b-roll clip.
-    /// Prefers portrait HD clips in the 5–60 second range.
+    /// Cleans up orphaned clip temp dirs from previous failed runs.
+    /// Runs at most once per cold start to reclaim disk space on Consumption plan.
     /// </summary>
-    private static int ScorePexelsVideo(PexelsVideo v)
+    private void CleanupOldTempDirsOnce(string currentJobId, ILogger log)
     {
-        int score = 0;
+        if (Interlocked.CompareExchange(ref _cleanupDone, 1, 0) != 0) return;
 
-        // Duration sweet spot: 5–60 seconds of usable footage
-        if (v.Duration >= 5 && v.Duration <= 60) score += 3;
-        else if (v.Duration > 60 && v.Duration <= 120) score += 1;
-
-        // Resolution quality
-        var bestFile = v.VideoFiles?
-            .Where(f => f.FileType == "video/mp4")
-            .OrderByDescending(f => f.Width * f.Height)
-            .FirstOrDefault();
-        if (bestFile?.Height >= 1080) score += 3;
-        else if (bestFile?.Height >= 720) score += 2;
-        else if (bestFile?.Height >= 480) score += 1;
-
-        return score;
-    }
-
-    private static async Task<string> SearchPexelsWithFallbackAsync(
-        string primaryQuery, string? fallbackQuery, string? brandOnlyFallback, string apiKey,
-        ILogger logger, string jobId, int index)
-    {
-        // Tier 1: model-specific query (e.g. "Ford Mustang exterior rolling b-roll footage")
-        try { return await SearchPexelsAsync(primaryQuery, apiKey); }
+        try
+        {
+            var tmp = Path.GetTempPath();
+            int deleted = 0;
+            foreach (var dir in Directory.GetDirectories(tmp, "clip-*"))
+            {
+                if (dir.Contains(currentJobId)) continue;
+                try
+                {
+                    var info = new DirectoryInfo(dir);
+                    if (info.LastWriteTimeUtc < DateTime.UtcNow.AddMinutes(-5))
+                    {
+                        Directory.Delete(dir, recursive: true);
+                        deleted++;
+                    }
+                }
+                catch { }
+            }
+            if (deleted > 0)
+                log.LogInformation("[{JobId}] Cleaned up {Count} orphaned clip temp dirs", currentJobId, deleted);
+        }
         catch (Exception ex)
         {
-            logger.LogWarning("[{JobId}] FetchClip[{Index}]: primary Pexels query failed ({Msg}), trying fallback",
-                jobId, index, ex.Message);
+            log.LogWarning("[{JobId}] Temp cleanup scan failed: {Msg}", currentJobId, ex.Message);
         }
-
-        // Tier 2: brand fallback (e.g. "Ford Mustang car driving road footage")
-        if (!string.IsNullOrEmpty(fallbackQuery))
-        {
-            try { return await SearchPexelsAsync(fallbackQuery, apiKey); }
-            catch (Exception ex)
-            {
-                logger.LogWarning("[{JobId}] FetchClip[{Index}]: fallback Pexels query failed ({Msg}), trying brand-only",
-                    jobId, index, ex.Message);
-            }
-        }
-
-        // Tier 3: brand-only (e.g. "Ford car driving road footage") — most likely to have results
-        if (!string.IsNullOrEmpty(brandOnlyFallback))
-        {
-            try { return await SearchPexelsAsync(brandOnlyFallback, apiKey); }
-            catch (Exception ex)
-            {
-                logger.LogWarning("[{JobId}] FetchClip[{Index}]: brand-only Pexels query failed ({Msg}), trying generic",
-                    jobId, index, ex.Message);
-            }
-        }
-
-        // Tier 4: absolute last resort — specific enough to avoid bikes/motorcycles
-        return await SearchPexelsAsync("luxury car driving highway cinematic", apiKey);
     }
 
-    // ── FFmpeg trim ──────────────────────────────────────────────────────────
+    // ── FFmpeg: trim + 2× speed ──────────────────────────────────────────────
 
-    private static async Task TrimClipAsync(string ffmpegPath, string source, string output, double duration)
+    /// <summary>
+    /// Produces exactly <paramref name="outputDuration"/> seconds of output at 2× speed.
+    /// Takes <c>outputDuration × 2</c> seconds of source, then applies setpts=0.5*PTS.
+    /// </summary>
+    private static async Task TrimClipAt2xAsync(string ffmpegPath, string source, string output, double outputDuration)
     {
+        var rawDuration = outputDuration * 2 + 1; // extra second buffer
+
         var psi = new System.Diagnostics.ProcessStartInfo
         {
             FileName              = ffmpegPath,
@@ -227,18 +184,18 @@ public class FetchClipActivity(
         foreach (var arg in new[]
         {
             "-y", "-ss", "0", "-i", source,
-            "-t", duration.ToString("F3"),
-            "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1",
+            "-t", rawDuration.ToString("F3"),
+            "-vf", $"scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,setpts=0.5*PTS",
             "-r", "30",
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24",
             "-an", output
         }) psi.ArgumentList.Add(arg);
 
         using var proc = System.Diagnostics.Process.Start(psi)!;
-        await proc.StandardError.ReadToEndAsync();
+        var stderr = await proc.StandardError.ReadToEndAsync();
         await proc.WaitForExitAsync();
         if (proc.ExitCode != 0)
-            throw new InvalidOperationException($"FFmpeg trim failed (exit {proc.ExitCode})");
+            throw new InvalidOperationException($"FFmpeg 2x trim failed (exit {proc.ExitCode}): {stderr[..Math.Min(200, stderr.Length)]}");
     }
 
     // ── Blob upload ──────────────────────────────────────────────────────────
