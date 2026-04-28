@@ -15,6 +15,8 @@ public class ComputerVisionService(string endpoint, string apiKey)
     private const double CornerWidthFraction  = 0.30;
     private const double CornerHeightFraction = 0.20;
     private const int    WatermarkCharThreshold = 8;
+    // If entire thumbnail has more than this many text chars it's a title card, not real footage
+    private const int    TextHeavyCharThreshold = 40;
 
     // Tags that indicate a car is present (confidence ≥ CarTagMinConfidence required)
     private static readonly HashSet<string> CarTags = new(StringComparer.OrdinalIgnoreCase)
@@ -26,13 +28,15 @@ public class ComputerVisionService(string endpoint, string apiKey)
     };
     private const float CarTagMinConfidence = 0.60f;
 
-    public record ThumbnailAnalysis(bool HasWatermark, bool HasCar);
+    public record ThumbnailAnalysis(bool HasWatermark, bool HasCar, bool IsTextHeavy = false);
 
     /// <summary>
     /// Analyzes a YouTube video thumbnail.
     /// Returns HasWatermark=true if significant corner text detected.
     /// Returns HasCar=true if any car-related tag is found with sufficient confidence.
-    /// On any failure, returns HasWatermark=false + HasCar=true (optimistic — don't block on CV errors).
+    /// Returns IsTextHeavy=true if the full image contains too much text — indicates a static
+    /// title-card or fake-footage upload (spam CC channels), not real video footage.
+    /// On any failure, returns HasWatermark=false + HasCar=true + IsTextHeavy=false (optimistic).
     /// </summary>
     public async Task<ThumbnailAnalysis> AnalyzeThumbnailAsync(string videoId)
     {
@@ -50,8 +54,9 @@ public class ComputerVisionService(string endpoint, string apiKey)
 
             var hasWatermark = CheckWatermark(result?.Value);
             var hasCar       = CheckCarPresence(result?.Value);
+            var isTextHeavy  = CheckTextHeavy(result?.Value);
 
-            return new ThumbnailAnalysis(hasWatermark, hasCar);
+            return new ThumbnailAnalysis(hasWatermark, hasCar, isTextHeavy);
         }
         catch (Exception ex)
         {
@@ -97,5 +102,20 @@ public class ComputerVisionService(string endpoint, string apiKey)
         return result.Tags.Values.Any(tag =>
             CarTags.Contains(tag.Name) && tag.Confidence >= CarTagMinConfidence);
     }
-}
 
+    /// <summary>
+    /// Counts all text characters across the entire thumbnail.
+    /// A high count indicates a static title card or fake-footage upload — reject these.
+    /// Genuine car footage thumbnails have a real scene with little or no text overlay.
+    /// </summary>
+    private static bool CheckTextHeavy(ImageAnalysisResult? result)
+    {
+        if (result?.Read?.Blocks is null) return false;
+
+        int totalChars = result.Read.Blocks
+            .SelectMany(b => b.Lines)
+            .Sum(l => l.Text.Length);
+
+        return totalChars >= TextHeavyCharThreshold;
+    }
+}

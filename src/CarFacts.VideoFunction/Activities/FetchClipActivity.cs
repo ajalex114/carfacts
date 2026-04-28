@@ -124,7 +124,7 @@ public class FetchClipActivity(
     {
         var req = new HttpRequestMessage(
             HttpMethod.Get,
-            $"https://api.pexels.com/videos/search?query={Uri.EscapeDataString(query)}&per_page=10&orientation=portrait");
+            $"https://api.pexels.com/videos/search?query={Uri.EscapeDataString(query)}&per_page=15&orientation=portrait");
         req.Headers.Authorization = new AuthenticationHeaderValue(apiKey);
 
         var resp   = await Http.SendAsync(req);
@@ -132,19 +132,48 @@ public class FetchClipActivity(
         var result = await resp.Content.ReadFromJsonAsync<PexelsSearchResult>()
             ?? throw new InvalidOperationException("Empty Pexels response");
 
-        var video = result.Videos?.FirstOrDefault(v => v.Height > v.Width)
-                 ?? result.Videos?.FirstOrDefault()
-                 ?? throw new InvalidOperationException($"No Pexels results for '{query}'");
+        // Score candidates: prefer portrait HD clips in the 5–60s range
+        var best = result.Videos?
+            .Where(v => v.Height > v.Width)   // portrait only
+            .Select(v => (Video: v, Score: ScorePexelsVideo(v)))
+            .OrderByDescending(x => x.Score)
+            .FirstOrDefault().Video
+            ?? result.Videos?.FirstOrDefault()
+            ?? throw new InvalidOperationException($"No Pexels results for '{query}'");
 
-        var file = video.VideoFiles?
+        var file = best.VideoFiles?
             .Where(f => f.FileType == "video/mp4" && f.Width >= 540)
-            .OrderBy(f => f.Width * f.Height)
+            .OrderBy(f => f.Width * f.Height)   // smallest that meets min quality — saves disk on Consumption plan
             .FirstOrDefault()
-            ?? video.VideoFiles?.Where(f => f.FileType == "video/mp4")
+            ?? best.VideoFiles?.Where(f => f.FileType == "video/mp4")
                    .OrderBy(f => f.Width * f.Height).FirstOrDefault()
             ?? throw new InvalidOperationException("No MP4 found");
 
         return file.Link ?? throw new InvalidOperationException("Pexels link is null");
+    }
+
+    /// <summary>
+    /// Scores a Pexels video for suitability as a car b-roll clip.
+    /// Prefers portrait HD clips in the 5–60 second range.
+    /// </summary>
+    private static int ScorePexelsVideo(PexelsVideo v)
+    {
+        int score = 0;
+
+        // Duration sweet spot: 5–60 seconds of usable footage
+        if (v.Duration >= 5 && v.Duration <= 60) score += 3;
+        else if (v.Duration > 60 && v.Duration <= 120) score += 1;
+
+        // Resolution quality
+        var bestFile = v.VideoFiles?
+            .Where(f => f.FileType == "video/mp4")
+            .OrderByDescending(f => f.Width * f.Height)
+            .FirstOrDefault();
+        if (bestFile?.Height >= 1080) score += 3;
+        else if (bestFile?.Height >= 720) score += 2;
+        else if (bestFile?.Height >= 480) score += 1;
+
+        return score;
     }
 
     private static async Task<string> SearchPexelsWithFallbackAsync(
@@ -181,8 +210,8 @@ public class FetchClipActivity(
             }
         }
 
-        // Tier 4: absolute last resort
-        return await SearchPexelsAsync("car driving road footage", apiKey);
+        // Tier 4: absolute last resort — specific enough to avoid bikes/motorcycles
+        return await SearchPexelsAsync("luxury car driving highway cinematic", apiKey);
     }
 
     // ── FFmpeg trim ──────────────────────────────────────────────────────────
@@ -243,6 +272,7 @@ public class FetchClipActivity(
         [property: JsonPropertyName("id")]          int Id,
         [property: JsonPropertyName("width")]       int Width,
         [property: JsonPropertyName("height")]      int Height,
+        [property: JsonPropertyName("duration")]    int Duration,
         [property: JsonPropertyName("video_files")] List<PexelsVideoFile>? VideoFiles);
 
     private record PexelsVideoFile(

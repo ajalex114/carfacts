@@ -23,20 +23,23 @@ public class YouTubeVideoService(
 {
     private static readonly HttpClient Http = new();
 
-    // Skip videos whose titles suggest talking-head, review, or text-heavy content
+    // Skip videos whose titles suggest talking-head, review, spam, or fake-footage content
     private static readonly string[] TitleSkipTerms =
     [
         "review", "test drive", "how to", "tutorial", "reaction", "vlog",
         "episode", "unboxing", "my new", "i bought", "comparison", "walkaround",
         "walk around", "why i", "should you", "is it worth", "first drive",
         "part 1", "part 2", "part 3", "ep.", "ep ", "#", "podcast",
+        // Spam CC channels — upload static images to game Creative Commons search
+        "no copyright", "free download", "free to use", "royalty free", "copyright free", "copyright",
     ];
 
-    // Prefer videos whose titles suggest clean stock/cinematic footage
+    // Prefer videos whose titles suggest genuine cinematic footage
     private static readonly string[] TitlePreferTerms =
     [
-        "footage", "b-roll", "b roll", "stock", "4k", "cinematic",
+        "4k", "cinematic", "b-roll", "b roll",
         "driving footage", "car video", "timelapse", "time lapse",
+        // "stock" intentionally excluded — heavily abused by spam channels
     ];
 
     public record YouTubeClip(
@@ -77,10 +80,15 @@ public class YouTubeVideoService(
             .OrderByDescending(x => x.Score)
             .ToList();
 
-        // Check top 5 via thumbnail analysis (watermark + car presence)
+        // Check top 5 via thumbnail analysis (watermark + car presence + text-heavy title cards)
         foreach (var (result, _) in scored.Take(5))
         {
             var analysis = await visionService.AnalyzeThumbnailAsync(result.VideoId);
+            if (analysis.IsTextHeavy)
+            {
+                Console.WriteLine($"  🚫 Title card (text-heavy thumbnail): {result.VideoId} \"{result.Title}\"");
+                continue;
+            }
             if (analysis.HasWatermark)
             {
                 Console.WriteLine($"  🚫 Watermark detected: {result.VideoId} \"{result.Title}\"");
