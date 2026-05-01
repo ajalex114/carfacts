@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Car Facts Daily</title>
+    <link>https://carfactsdaily.com</link>
+    <description>Five car facts. Every day. Forever.</description>
+    <language>en-us</language>
+    <atom:link href="https://carfactsdaily.com/feed/" rel="self" type="application/rss+xml"/>
+  </channel>
+</rss>

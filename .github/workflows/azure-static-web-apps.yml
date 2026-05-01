@@ -27,7 +27,7 @@ jobs:
           action: upload
           app_location: src/carfacts-web
           api_location: ""
-          output_location: .next
+          output_location: out
         env:
           NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
           NEXT_PUBLIC_ADSENSE_PUBLISHER_ID: ${{ secrets.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID }}
