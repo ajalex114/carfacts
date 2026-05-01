@@ -26,6 +26,8 @@ export interface Post {
   /** 1–2 sentence intro paragraph shown above the five facts. */
   intro: string;
   facts: PostFact[];
+  /** Full HTML content — used as fallback for migrated posts without structured facts. */
+  htmlContent?: string;
   /** ISO-8601 datetime string */
   publishedAt: string;
   category: string;

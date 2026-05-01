@@ -31,6 +31,7 @@ interface CosmosPostDocument {
   title: string;
   metaDescription: string;
   excerpt: string;
+  htmlContent?: string;
   featuredImageUrl: string;
   images: CosmosPostImage[];
   keywords: string[];
@@ -65,6 +66,7 @@ function cosmosDocToPost(doc: CosmosPostDocument, issueNumber: number): Post {
     heroImageAlt: doc.images?.[0]?.altText || doc.title,
     intro: doc.excerpt || "",
     facts,
+    htmlContent: doc.htmlContent,
     publishedAt: doc.publishedAt,
     category: doc.category || "car-facts",
     keywords: doc.keywords || [],

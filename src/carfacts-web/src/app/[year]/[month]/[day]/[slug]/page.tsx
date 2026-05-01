@@ -97,6 +97,7 @@ export default async function PostPage({ params }: PostPageProps) {
           </p>
 
           {/* Five Facts */}
+          {/* Five Facts — structured (new posts) or raw HTML (migrated WP posts) */}
           <section className="mt-12">
             <div className="mb-8 border-t border-border pt-8">
               <p className="kicker text-signal mb-1">The Five Facts</p>
@@ -105,44 +106,57 @@ export default async function PostPage({ params }: PostPageProps) {
               </h2>
             </div>
 
-            <ol className="space-y-16">
-              {post.facts.map((fact, index) => (
-                <li key={index} className="grid gap-6 md:grid-cols-12 md:gap-10">
-                  {/* Fact number */}
-                  <div className="md:col-span-1">
-                    <span className="font-display text-5xl font-black text-border leading-none">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                  </div>
+            {post.facts.length > 0 ? (
+              <ol className="space-y-16">
+                {post.facts.map((fact, index) => (
+                  <li key={index} className="grid gap-6 md:grid-cols-12 md:gap-10">
+                    {/* Fact number */}
+                    <div className="md:col-span-1">
+                      <span className="font-display text-5xl font-black text-border leading-none">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                    </div>
 
-                  {/* Fact content */}
-                  <div className="md:col-span-11">
-                    <h3 className="font-display text-2xl font-bold tracking-tight leading-snug mb-3 md:text-3xl">
-                      {fact.title}
-                    </h3>
-                    <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                      {fact.body}
-                    </p>
+                    {/* Fact content */}
+                    <div className="md:col-span-11">
+                      <h3 className="font-display text-2xl font-bold tracking-tight leading-snug mb-3 md:text-3xl">
+                        {fact.title}
+                      </h3>
+                      <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                        {fact.body}
+                      </p>
 
-                    {/* Fact image */}
-                    <figure className="mt-6">
-                      <div className="aspect-[16/9] w-full overflow-hidden bg-secondary">
-                        <Image
-                          src={fact.imageUrl}
-                          alt={fact.imageAlt}
-                          width={1200}
-                          height={675}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <figcaption className="mt-2 text-xs text-muted-foreground">
-                        {fact.imageAlt}
-                      </figcaption>
-                    </figure>
-                  </div>
-                </li>
-              ))}
-            </ol>
+                      {/* Fact image */}
+                      <figure className="mt-6">
+                        <div className="aspect-[16/9] w-full overflow-hidden bg-secondary">
+                          <Image
+                            src={fact.imageUrl}
+                            alt={fact.imageAlt}
+                            width={1200}
+                            height={675}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <figcaption className="mt-2 text-xs text-muted-foreground">
+                          {fact.imageAlt}
+                        </figcaption>
+                      </figure>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : post.htmlContent ? (
+              /* Migrated WordPress posts: render the original HTML */
+              <div
+                className="prose prose-neutral max-w-none text-foreground
+                           prose-headings:font-display prose-headings:tracking-tight
+                           prose-h2:text-2xl prose-h2:font-bold prose-h3:text-xl
+                           prose-p:text-muted-foreground prose-p:leading-relaxed
+                           prose-img:rounded-none prose-img:w-full
+                           prose-a:text-signal prose-a:no-underline hover:prose-a:underline"
+                dangerouslySetInnerHTML={{ __html: post.htmlContent }}
+              />
+            ) : null}
           </section>
 
           {/* Share / navigation */}

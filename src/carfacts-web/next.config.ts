@@ -11,10 +11,13 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
-      // Production: Azure Blob Storage
       {
         protocol: "https",
-        hostname: "*.blob.core.windows.net",
+        hostname: "i0.wp.com",
+      },
+      {
+        protocol: "https",
+        hostname: "carfactsdaily.com",
       },
     ],
   },
