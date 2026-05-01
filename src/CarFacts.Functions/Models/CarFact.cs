@@ -18,4 +18,7 @@ public sealed class CarFact
 
     [JsonPropertyName("image_prompt")]
     public string ImagePrompt { get; set; } = string.Empty;
+
+    [JsonPropertyName("image_search_query")]
+    public string ImageSearchQuery { get; set; } = string.Empty;
 }

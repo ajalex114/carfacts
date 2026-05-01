@@ -16,7 +16,7 @@ public class PlanSegmentsActivity(ILogger<PlanSegmentsActivity> logger)
         [ActivityTrigger] PlanActivityInput input,
         FunctionContext ctx)
     {
-        var segments = SegmentPlanner.Plan(input.Words, input.TotalDuration, input.Fact);
+        var segments = SegmentPlanner.Plan(input.Words, input.TotalDuration, input.Fact, input.ImageSearchQuery);
         logger.LogInformation("PlanSegments: planned {Count} segments", segments.Count);
         return Task.FromResult(segments);
     }

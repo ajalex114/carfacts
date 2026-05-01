@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace CarFacts.VideoPoC.Services;
 
 /// <summary>
-/// Splits word timings into sentence-level segments and generates
-/// a Pexels search query for each segment using simple keyword extraction.
+/// Splits word timings into sentence-level segments and assigns the shared
+/// image search query produced by <see cref="ImageQueryExtractorService"/>.
 /// </summary>
 public static class SegmentPlanner
 {
@@ -23,7 +23,7 @@ public static class SegmentPlanner
         "never","every","because","first","last","both","new","one","two","three"
     };
 
-    // Known car brands: key = word to detect (case-insensitive), value = Pexels-friendly brand name
+    // Known car brands: key = word to detect (case-insensitive), value = Bing-friendly brand name
     private static readonly Dictionary<string, string> BrandMap = new(StringComparer.OrdinalIgnoreCase)
     {
         { "Ford",       "Ford"       }, { "Model T",    "Ford Model T" },
@@ -65,7 +65,7 @@ public static class SegmentPlanner
     /// Multi-word brands (e.g. "Model T", "Land Rover") are checked before single words.
     /// Returns null if no known brand is found.
     /// </summary>
-    private static string? DetectBrand(string factText)
+    internal static string? DetectBrand(string factText)
     {
         // Check multi-word brand keys first (longest match wins)
         var multiWord = BrandMap.Keys
@@ -125,11 +125,14 @@ public static class SegmentPlanner
     /// Splits words into segments at sentence boundaries (period/question/exclamation
     /// or pauses ≥ 0.4s), then force-splits any segment longer than MaxClipDuration.
     /// The last segment is extended to <paramref name="totalDuration"/> to cover the hook.
+    /// When <paramref name="imageSearchQuery"/> is provided (LLM-generated), it is used
+    /// directly as the search query for all segments — no regex or brand detection needed.
     /// </summary>
     public static List<VideoSegment> Plan(
         List<WordTiming> words,
         double totalDuration,
-        string factContext = "")
+        string factContext = "",
+        string? imageSearchQuery = null)
     {
         // ── Step 1: split at sentence boundaries ────────────────────────────
         var groups = new List<List<WordTiming>>();
@@ -170,12 +173,17 @@ public static class SegmentPlanner
         }
 
         // ── Step 3: detect brand for brand-aware query injection ─────────────
-        string? detectedBrand = string.IsNullOrWhiteSpace(factContext)
-            ? null
-            : DetectBrand(factContext);
-
-        if (detectedBrand != null)
-            Console.WriteLine($"🏷️   Brand detected: {detectedBrand} — clips will be brand-specific");
+        string? detectedBrand = null;
+        if (imageSearchQuery != null)
+        {
+            Console.WriteLine($"🔍  Using LLM image_search_query: \"{imageSearchQuery}\"");
+        }
+        else if (!string.IsNullOrWhiteSpace(factContext))
+        {
+            detectedBrand = DetectBrand(factContext);
+            if (detectedBrand != null)
+                Console.WriteLine($"🏷️   Brand detected: {detectedBrand} — clips will be brand-specific");
+        }
 
         // ── Step 4: build VideoSegment list ──────────────────────────────────
         var segments = new List<VideoSegment>();
@@ -187,8 +195,11 @@ public static class SegmentPlanner
                 ? totalDuration
                 : finalGroups[i + 1][0].StartSeconds;
 
+            var query = imageSearchQuery ?? BuildQuery(g, detectedBrand);
+            Console.WriteLine($"  Segment {i}: \"{query}\"");
+
             segments.Add(new VideoSegment(
-                SearchQuery:  BuildQuery(g, detectedBrand),
+                SearchQuery:  query,
                 StartSeconds: start,
                 EndSeconds:   end));
         }

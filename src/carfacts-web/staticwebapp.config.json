@@ -1,0 +1,54 @@
+{
+  "routes": [
+    {
+      "route": "/feed/",
+      "rewrite": "/api/feed"
+    },
+    {
+      "route": "/sitemap_index.xml",
+      "rewrite": "/api/sitemap-index"
+    },
+    {
+      "route": "/post-sitemap.xml",
+      "rewrite": "/api/sitemap-posts"
+    },
+    {
+      "route": "/news-sitemap.xml",
+      "rewrite": "/api/sitemap-news"
+    },
+    {
+      "route": "/web-story-sitemap.xml",
+      "rewrite": "/api/sitemap-webstories"
+    },
+    {
+      "route": "/category-sitemap.xml",
+      "rewrite": "/api/sitemap-categories"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/404",
+    "exclude": [
+      "/images/*",
+      "/assets/*",
+      "*.{png,jpg,jpeg,gif,webp,svg,ico,css,js,woff,woff2,ttf,eot}"
+    ]
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/404",
+      "statusCode": 404
+    }
+  },
+  "globalHeaders": {
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://pagead2.googlesyndication.com https://partner.googleadservices.com https://tpc.googlesyndication.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com; frame-src https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; object-src 'none'; base-uri 'self'"
+  },
+  "mimeTypes": {
+    ".xml": "application/xml",
+    ".txt": "text/plain"
+  }
+}

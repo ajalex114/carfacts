@@ -8,6 +8,8 @@ namespace CarFacts.Functions.Functions.Activities;
 
 /// <summary>
 /// Formats the HTML content and publishes the WordPress post.
+/// Returns both the WordPress result and the formatted HTML so the orchestrator
+/// can save the post to Cosmos DB with Blob Storage image URLs.
 /// If DraftPostId > 0, updates and publishes the existing draft.
 /// Otherwise, creates a new post directly.
 /// </summary>
@@ -28,7 +30,7 @@ public sealed class FormatAndPublishActivity
     }
 
     [Function(nameof(FormatAndPublishActivity))]
-    public async Task<WordPressPostResult> Run(
+    public async Task<FormatAndPublishResult> Run(
         [ActivityTrigger] PublishInput input)
     {
         _logger.LogInformation("Formatting and publishing post for {Date}", input.TodayDate);
@@ -39,11 +41,11 @@ public sealed class FormatAndPublishActivity
         var featuredMediaId = input.Media.FirstOrDefault()?.MediaId ?? 0;
         var keywords = string.Join(", ", input.Seo.Keywords);
 
-        WordPressPostResult result;
+        WordPressPostResult wpResult;
 
         if (input.DraftPostId > 0)
         {
-            result = await _wordPressService.UpdateAndPublishPostAsync(
+            wpResult = await _wordPressService.UpdateAndPublishPostAsync(
                 input.DraftPostId,
                 input.Seo.MainTitle,
                 htmlContent,
@@ -54,7 +56,7 @@ public sealed class FormatAndPublishActivity
         }
         else
         {
-            result = await _wordPressService.CreatePostAsync(
+            wpResult = await _wordPressService.CreatePostAsync(
                 input.Seo.MainTitle,
                 htmlContent,
                 input.Seo.SocialMediaTeaser,
@@ -63,7 +65,13 @@ public sealed class FormatAndPublishActivity
                 input.Seo.MetaDescription);
         }
 
-        _logger.LogInformation("Post published: {PostUrl}", result.PostUrl);
-        return result;
+        _logger.LogInformation("Post published: {PostUrl}", wpResult.PostUrl);
+
+        return new FormatAndPublishResult
+        {
+            WordPress = wpResult,
+            HtmlContent = htmlContent
+        };
     }
 }
+

@@ -1,0 +1,12 @@
+# ads.txt — Authorized Digital Sellers
+# https://iabtechlab.com/ads-txt/
+#
+# FORMAT: <SSP/Exchange Domain>, <Publisher Account ID>, <Relationship>, <Certification Authority ID>
+#
+# ── Google AdSense ──────────────────────────────────────────────────────────
+# IMPORTANT: Replace "pub-XXXXXXXXXXXXXXXX" with your actual AdSense publisher ID.
+# Find it at: https://www.google.com/adsense → Account → Account information
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+
+# ── Google Ad Manager (if used) ─────────────────────────────────────────────
+# google.com, YYYYYYYY, RESELLER, f08c47fec0942fa0

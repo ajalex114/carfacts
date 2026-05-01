@@ -2,30 +2,25 @@ namespace CarFacts.VideoFunction.Models;
 
 // ── Input models ─────────────────────────────────────────────────────────────
 
-public record StartVideoRequest(string Fact);
+public record StartVideoRequest(string Fact, string? ImageSearchQuery = null);
 
 public record TtsActivityInput(string JobId, string Fact)
 {
     public string StorageConnectionString { get; init; } = "";
 }
 
-public record PlanActivityInput(List<WordTiming> Words, double TotalDuration, string Fact);
+public record PlanActivityInput(List<WordTiming> Words, double TotalDuration, string Fact, string? ImageSearchQuery = null);
 
 public record FetchClipActivityInput(
     string   JobId,
     int      Index,
     string   SearchQuery,
     double   Duration,
-    string   PexelsApiKey,
     string   StorageConnectionString,
     string   FfmpegBlobConnectionString,
-    string   YouTubeApiKey,
-    string   VisionEndpoint,
-    string   VisionApiKey,
     ShotType ShotType           = ShotType.ExteriorRolling,
     string?  FallbackQuery      = null,
-    string?  BrandOnlyFallback  = null,
-    string?  ProxyUrl           = null);
+    string?  BrandOnlyFallback  = null);
 
 public record RenderActivityInput(
     string         JobId,
@@ -48,10 +43,16 @@ public record TtsActivityResult(
 /// <summary>Source info for a single clip — returned in the status API response.</summary>
 public record ClipSource(
     int     Index,
-    string  Source,   // "YouTube CC" | "Pexels"
+    string  Source,   // "Bing/Wikimedia"
     string  Query,
     string? Title = null);
 
 public record FetchClipActivityResult(int Index, string? ClipUrl, string? Attribution = null);
 
 public record RenderActivityResult(string VideoUrl, double DurationSeconds, int ClipCount, List<ClipSource>? ClipSources = null);
+
+public record GenerateQueryActivityInput(string JobId, string Fact);
+public record GenerateQueryActivityResult(string Query);
+
+public record GenerateCarFactActivityInput(string JobId);
+public record GenerateCarFactActivityResult(string Fact);

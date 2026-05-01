@@ -27,4 +27,7 @@ public static class SecretNames
     // AdSense
     public const string AdSenseClientId = "AdSense-ClientId";
     public const string AdSenseSlotId = "AdSense-SlotId";
+
+    // Blob Storage (local dev only — production uses DefaultAzureCredential)
+    public const string BlobStorageConnectionString = "BlobStorage-ConnectionString";
 }

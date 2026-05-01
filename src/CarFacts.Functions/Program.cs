@@ -71,6 +71,7 @@ static void RegisterSettings(HostBuilderContext context, IServiceCollection serv
     services.Configure<ScheduleSettings>(config.GetSection(ScheduleSettings.SectionName));
     services.Configure<SocialMediaSettings>(config.GetSection(SocialMediaSettings.SectionName));
     services.Configure<CosmosDbSettings>(config.GetSection(CosmosDbSettings.SectionName));
+    services.Configure<BlobStorageSettings>(config.GetSection(BlobStorageSettings.SectionName));
 }
 
 static void RegisterServices(HostBuilderContext context, IServiceCollection services)
@@ -117,6 +118,13 @@ static void RegisterServices(HostBuilderContext context, IServiceCollection serv
 
     // Cosmos DB for fact keyword storage
     RegisterCosmosDb(config, services, isLocal);
+
+    // Blob Storage for post images, sitemap, and RSS feed
+    services.AddSingleton<IBlobImageStore, BlobImageUploadService>();
+
+    // Sitemap and RSS feed generation
+    services.AddSingleton<ISitemapService, SitemapGeneratorService>();
+    services.AddSingleton<IRssFeedService, RssFeedGeneratorService>();
 }
 
 static void RegisterTextProvider(
@@ -246,10 +254,12 @@ static void RegisterCosmosDb(
             }));
         services.AddSingleton<IFactKeywordStore, CosmosFactKeywordStore>();
         services.AddSingleton<ISocialMediaQueueStore, CosmosSocialMediaQueueStore>();
+        services.AddSingleton<IPostStore, CosmosPostStore>();
     }
     else
     {
         services.AddSingleton<IFactKeywordStore, NullFactKeywordStore>();
         services.AddSingleton<ISocialMediaQueueStore, NullSocialMediaQueueStore>();
+        services.AddSingleton<IPostStore, NullPostStore>();
     }
 }

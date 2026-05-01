@@ -73,9 +73,9 @@ public class SubtitleGenerator
             sb.AppendLine($"Dialogue: 0,{Ts(curr.StartSeconds)},{Ts(lineEnd)},Karaoke,,0,0,0,,{line}");
         }
 
-        // Website hook — last 2 seconds only
-        var hookStart = Math.Max(totalDuration - 2.0, 0);
-        sb.AppendLine($"Dialogue: 1,{Ts(hookStart)},{Ts(totalDuration)},Hook,,0,0,0,,{{\\an2}}Follow at {Esc(websiteUrl)}");
+        // Website hook — last 3 seconds
+        var hookStart = Math.Max(totalDuration - 3.0, 0);
+        sb.AppendLine($"Dialogue: 1,{Ts(hookStart)},{Ts(totalDuration)},Hook,,0,0,0,,{{\\an2}}Follow {Esc(websiteUrl)} for more");
 
         return sb.ToString();
     }

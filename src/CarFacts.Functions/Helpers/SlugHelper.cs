@@ -8,6 +8,21 @@ namespace CarFacts.Functions.Helpers;
 /// </summary>
 public static partial class SlugHelper
 {
+/// <summary>
+    /// Generates a URL-friendly slug from a post title.
+    /// e.g., "Five Wild Moments in Car History" → "five-wild-moments-in-car-history"
+    /// </summary>
+    public static string GeneratePostSlug(string title)
+    {
+        var lower = title.ToLowerInvariant();
+        var slug = NonAlphanumericRegex().Replace(lower, "-").Trim('-');
+        slug = MultipleHyphensRegex().Replace(slug, "-");
+        // Truncate to 80 chars to keep URLs clean
+        if (slug.Length > 80)
+            slug = slug[..80].TrimEnd('-');
+        return slug;
+    }
+
     /// <summary>
     /// Generates a meaningful anchor ID from a CarFact's model name and year.
     /// e.g., "BMW 3.0 CSL" + 1972 → "bmw-3-0-csl-1972"

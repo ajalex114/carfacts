@@ -4,10 +4,8 @@ using System.Text.RegularExpressions;
 namespace CarFacts.VideoFunction.Services;
 
 /// <summary>
-/// Splits word timings into sentence-level segments and generates
-/// a Pexels/YouTube search query for each segment using simple keyword extraction.
-/// Each segment is assigned a randomized shot type (ExteriorRolling, InteriorPOV, DroneShot, CloseUp)
-/// which is appended to the search query for more cinematic, varied results.
+/// Splits word timings into sentence-level segments and assigns each one the shared
+/// image search query produced by <see cref="ImageQueryExtractorService"/>.
 /// </summary>
 public static class SegmentPlanner
 {
@@ -25,7 +23,7 @@ public static class SegmentPlanner
         "never","every","because","first","last","both","new","one","two","three"
     };
 
-    // Known car brands: key = word to detect (case-insensitive), value = Pexels-friendly brand name
+    // Known car brands: key = word to detect (case-insensitive), value = Bing-friendly brand name
     private static readonly Dictionary<string, string> BrandMap = new(StringComparer.OrdinalIgnoreCase)
     {
         { "Ford",       "Ford"       }, { "Model T",    "Ford Model T" },
@@ -67,7 +65,7 @@ public static class SegmentPlanner
     /// Multi-word brands (e.g. "Model T", "Land Rover") are checked before single words.
     /// Returns null if no known brand is found.
     /// </summary>
-    private static string? DetectBrand(string factText)
+    internal static string? DetectBrand(string factText)
     {
         var multiWord = BrandMap.Keys
             .Where(k => k.Contains(' '))
@@ -153,7 +151,7 @@ public static class SegmentPlanner
         "Miura", "Zonda", "Chiron", "Veyron", "Speedster", "Carrera GT",
     };
 
-    private static string? DetectModel(string factText)
+    internal static string? DetectModel(string factText)
     {
         // Multi-word models first
         var multiWord = ModelNames.Where(m => m.Contains(' ')).OrderByDescending(m => m.Length);
@@ -169,14 +167,13 @@ public static class SegmentPlanner
     }
 
 
-    /// Keeps Pexels searches compatible (these suffixes also work on Pexels).
-    /// </summary>
+    /// <summary>Fallback suffix for rule-based query building (only used when no LLM query available).</summary>
     private static readonly Dictionary<ShotType, string> ShotTypeSuffix = new()
     {
-        { ShotType.ExteriorRolling, "exterior rolling b-roll footage" },
-        { ShotType.InteriorPOV,     "interior POV driving footage"    },
-        { ShotType.DroneShot,       "drone aerial footage"            },
-        { ShotType.CloseUp,         "close up detail b-roll"          },
+        { ShotType.ExteriorRolling, "automobile"    },
+        { ShotType.InteriorPOV,     "car interior"  },
+        { ShotType.DroneShot,       "car photo"     },
+        { ShotType.CloseUp,         "car close up"  },
     };
 
     /// <summary>
@@ -187,7 +184,8 @@ public static class SegmentPlanner
     public static List<VideoSegment> Plan(
         List<WordTiming> words,
         double totalDuration,
-        string factContext = "")
+        string factContext = "",
+        string? imageSearchQuery = null)
     {
         // ── Step 1: split at sentence boundaries ────────────────────────────
         var groups  = new List<List<WordTiming>>();
@@ -227,16 +225,20 @@ public static class SegmentPlanner
         }
 
         // ── Step 3: detect brand + model ────────────────────────────────────
-        string? detectedBrand = string.IsNullOrWhiteSpace(factContext)
-            ? null
-            : DetectBrand(factContext);
+        string? detectedBrand = null;
+        string? detectedModel = null;
 
-        string? detectedModel = detectedBrand != null
-            ? DetectModel(factContext)
-            : null;
-
-        if (detectedBrand != null)
-            Console.WriteLine($"🏷️   Brand detected: {detectedBrand}{(detectedModel != null ? $" {detectedModel}" : "")} — clips will be brand-specific");
+        if (imageSearchQuery != null)
+        {
+            Console.WriteLine($"🔍  Using LLM image_search_query: \"{imageSearchQuery}\"");
+        }
+        else if (!string.IsNullOrWhiteSpace(factContext))
+        {
+            detectedBrand = DetectBrand(factContext);
+            detectedModel = detectedBrand != null ? DetectModel(factContext) : null;
+            if (detectedBrand != null)
+                Console.WriteLine($"🏷️   Brand detected: {detectedBrand}{(detectedModel != null ? $" {detectedModel}" : "")} — clips will be brand-specific");
+        }
 
         // ── Step 4: generate shuffled shot type sequence ─────────────────────
         var shotSequence = ShuffleShotTypes(finalGroups.Count);
@@ -251,17 +253,18 @@ public static class SegmentPlanner
                 ? totalDuration
                 : finalGroups[i + 1][0].StartSeconds;
             var shot    = shotSequence[i];
-            var query   = BuildQuery(detectedBrand, detectedModel, shot);
+
+            // Use LLM-provided query if available; fall back to text-derived query
+            var query = imageSearchQuery ?? BuildQuery(detectedBrand, detectedModel, shot);
 
             Console.WriteLine($"  Segment {i}: [{shot}] \"{query}\"");
 
             var fallback = detectedBrand != null
-                ? $"{detectedBrand}{(detectedModel != null ? $" {detectedModel}" : "")} car driving road footage"
-                : "car driving road footage";
+                ? $"{detectedBrand}{(detectedModel != null ? $" {detectedModel}" : "")} automobile"
+                : "automobile car photo";
 
-            // Brand-only fallback (no model) — Pexels rarely has model-specific footage
             var brandOnlyFallback = detectedBrand != null && detectedModel != null
-                ? $"{detectedBrand} car driving road footage"
+                ? $"{detectedBrand} automobile"
                 : null;
 
             segments.Add(new VideoSegment(
@@ -301,9 +304,8 @@ public static class SegmentPlanner
     }
 
     /// <summary>
-    /// Builds a Pexels/YouTube query that always shows the car itself — never narration keywords.
-    /// Uses brand + model when detected (e.g. "Ford Mustang exterior rolling b-roll footage")
-    /// for precise clip selection, falling back to brand-only or generic "car".
+    /// Builds a Bing image search query — only used when no LLM-generated query is available.
+    /// Uses brand + model when detected (e.g. "Ford Mustang automobile") for specific results.
     /// </summary>
     private static string BuildQuery(string? brand, string? model, ShotType shot)
     {

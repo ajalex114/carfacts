@@ -24,9 +24,12 @@ Return ONLY valid JSON with this exact structure (no markdown, no code blocks, j
       "catchy_title": "Catchy engaging title for this specific fact",
       "fact": "On this day in 1955, detailed fascinating fact with rich context and impact analysis",
       "car_model": "Specific car name or brand involved",
-      "image_prompt": "Detailed visual description: a photorealistic image of [specific car model], [key visual details like color, angle, setting], [historical context], professional automotive photography style, high quality, detailed, 8k"
+      "image_prompt": "Detailed visual description: a photorealistic image of [specific car model], [key visual details like color, angle, setting], [historical context], professional automotive photography style, high quality, detailed, 8k",
+      "image_search_query": "Ford Mustang 1964"
     }
   ]
 }
 
 Make sure the image_prompt is detailed and specific enough for accurate image generation. Include visual details like era-appropriate styling, colors, settings, and atmosphere.
+
+For image_search_query: provide just the car brand, model, and year — e.g. "Lamborghini Miura 1966", "Ford Mustang 1964", "Toyota Supra 1993". Keep it short: brand + model + year only, no extra words. This is used directly as a Bing image search query.

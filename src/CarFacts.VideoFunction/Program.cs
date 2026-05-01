@@ -16,9 +16,17 @@ var host = new HostBuilder()
         services.AddSingleton(_ => new FfmpegManager(
             cfg["Storage:ConnectionString"] ?? throw new InvalidOperationException("Storage:ConnectionString not configured")));
 
-        // YtDlpManager — same cold-start pattern as FfmpegManager (~12 MB binary)
-        services.AddSingleton(_ => new YtDlpManager(
-            cfg["Storage:ConnectionString"] ?? throw new InvalidOperationException("Storage:ConnectionString not configured")));
+        // ImageQueryExtractorService — extracts clean Bing search query from fact text
+        services.AddSingleton(_ => new ImageQueryExtractorService(
+            cfg["OpenAI:Endpoint"],
+            cfg["OpenAI:ApiKey"],
+            cfg["OpenAI:DeploymentName"]));
+
+        // CarFactGenerationService — generates ~50-word car fact via LLM (Step 0)
+        services.AddSingleton(_ => new CarFactGenerationService(
+            cfg["OpenAI:Endpoint"],
+            cfg["OpenAI:ApiKey"],
+            cfg["OpenAI:DeploymentName"]));
 
         // TTS + subtitle services used by SynthesizeTtsActivity
         services.AddSingleton(_ => new TtsService(

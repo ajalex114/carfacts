@@ -1,4 +1,5 @@
 using CarFacts.Functions.Functions.Activities;
+using CarFacts.Functions.Helpers;
 using CarFacts.Functions.Models;
 using CarFacts.Functions.Services.Interfaces;
 using Microsoft.Azure.Functions.Worker;
@@ -21,6 +22,10 @@ public static class CarFactsOrchestrator
         maxNumberOfAttempts: 3,
         firstRetryInterval: TimeSpan.FromSeconds(3));
 
+    private static readonly RetryPolicy BlobRetryPolicy = new(
+        maxNumberOfAttempts: 3,
+        firstRetryInterval: TimeSpan.FromSeconds(3));
+
     private static readonly RetryPolicy SocialRetryPolicy = new(
         maxNumberOfAttempts: 2,
         firstRetryInterval: TimeSpan.FromSeconds(5));
@@ -30,7 +35,8 @@ public static class CarFactsOrchestrator
         [OrchestrationTrigger] TaskOrchestrationContext context)
     {
         var logger = context.CreateReplaySafeLogger(nameof(CarFactsOrchestrator));
-        var todayDate = context.CurrentUtcDateTime.ToString("MMMM d");
+        var publishDate = context.CurrentUtcDateTime;
+        var todayDate = publishDate.ToString("MMMM d");
 
         logger.LogInformation("Starting CarFacts pipeline for {Date}", todayDate);
 
@@ -42,8 +48,7 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("Generated {Count} facts, shuffling order", content.Facts.Count);
 
-        // Shuffle facts so the first fact (and thus the title image) isn't always the oldest
-        // Use deterministic GUID from orchestration context to ensure replay-safety
+        // Shuffle facts deterministically using orchestration context GUID
         var shuffleSeed = context.NewGuid().GetHashCode();
         var rng = new Random(shuffleSeed);
         var shuffled = content.Facts.OrderBy(_ => rng.Next()).ToList();
@@ -53,8 +58,6 @@ public static class CarFactsOrchestrator
             string.Join(", ", content.Facts.Select(f => f.Year)));
 
         // Steps 2 & 3: SEO + images in parallel
-        // SEO runs as one LLM call; images run sequentially inside one activity
-        // (image APIs rate-limit, so per-image fan-out causes 429 failures)
         var seoTask = context.CallActivityAsync<SeoMetadata>(
             nameof(GenerateSeoActivity),
             content,
@@ -65,7 +68,6 @@ public static class CarFactsOrchestrator
             content.Facts,
             new TaskOptions(ImageRetryPolicy));
 
-        // Wait for both to complete
         await Task.WhenAll(seoTask, imagesTask);
 
         var seo = seoTask.Result;
@@ -82,7 +84,7 @@ public static class CarFactsOrchestrator
                 new FindBacklinksInput
                 {
                     FactKeywords = seo.FactKeywords,
-                    CurrentPostUrl = "" // Not published yet — no URL to exclude
+                    CurrentPostUrl = "" // Not published yet
                 },
                 new TaskOptions(WordPressRetryPolicy));
             logger.LogInformation("Found {Backlinks} backlinks + {Related} related posts",
@@ -93,21 +95,63 @@ public static class CarFactsOrchestrator
             logger.LogWarning("Backlink lookup failed (non-blocking): {Message}", ex.Message);
         }
 
-        WordPressPostResult publishResult;
-        var uploadedMedia = new List<UploadedMedia>();
+        // Compute slug and canonical post URL from SEO title + date
+        // This is done before any publishing so Blob paths can be set correctly.
+        var slug = SlugHelper.GeneratePostSlug(seo.MainTitle);
+        var datePath = publishDate.ToString("yyyy/MM/dd");
+        var canonicalPostUrl = $"https://carfactsdaily.com/{datePath}/{slug}/";
+        var blobPathPrefix = $"{datePath}/{slug}/";
+
+        logger.LogInformation("Post slug: {Slug} | Canonical URL: {Url}", slug, canonicalPostUrl);
+
+        // Step 4: Upload images to Blob Storage FIRST (Blob URLs will be embedded in HTML)
+        var blobResults = new List<BlobUploadResult>();
+        if (images.Count > 0)
+        {
+            try
+            {
+                blobResults = await context.CallActivityAsync<List<BlobUploadResult>>(
+                    nameof(UploadImagesToBlobActivity),
+                    new UploadImagesToBlobInput
+                    {
+                        Images = images,
+                        Facts = content.Facts,
+                        PathPrefix = blobPathPrefix
+                    },
+                    new TaskOptions(BlobRetryPolicy));
+
+                logger.LogInformation("Uploaded {Count} images to Blob Storage", blobResults.Count);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Blob image upload failed (continuing without Blob URLs): {Message}", ex.Message);
+            }
+        }
+
+        // Build UploadedMedia list with Blob SourceUrls (MediaId will be set after WP upload)
+        // If Blob upload failed, SourceUrl will be empty — WP upload fills it in as fallback
+        var mergedMedia = blobResults.Select(b => new UploadedMedia
+        {
+            FactIndex = b.FactIndex,
+            MediaId = 0,          // Filled in after WP upload
+            SourceUrl = b.BlobUrl // Blob URL → embedded in HTML
+        }).ToList();
+
+        FormatAndPublishResult publishResult;
+        var wpUploadedMedia = new List<UploadedMedia>();
 
         if (images.Count > 0)
         {
-            // Step 4: Create draft post (so we have a parent_id for image uploads)
+            // Step 5: Create draft WP post (needed for WP media parent_id)
             var draft = await context.CallActivityAsync<WordPressPostResult>(
                 nameof(CreateDraftPostActivity),
                 seo.MainTitle,
                 new TaskOptions(WordPressRetryPolicy));
 
-            logger.LogInformation("Draft post created: ID={PostId}", draft.PostId);
+            logger.LogInformation("WP draft post created: ID={PostId}", draft.PostId);
 
-            // Step 5: Upload images in parallel with parent_id (fan-out)
-            var uploadTasks = images.Select(img =>
+            // Step 6: Upload images to WP in parallel (for WP featured_image field)
+            var wpUploadTasks = images.Select(img =>
                 context.CallActivityAsync<UploadedMedia>(
                     nameof(UploadSingleImageActivity),
                     new UploadImageInput
@@ -118,18 +162,40 @@ public static class CarFactsOrchestrator
                     },
                     new TaskOptions(WordPressRetryPolicy))).ToList();
 
-            uploadedMedia = (await Task.WhenAll(uploadTasks)).ToList();
+            wpUploadedMedia = (await Task.WhenAll(wpUploadTasks)).ToList();
 
-            logger.LogInformation("Uploaded {Count} images to WordPress", uploadedMedia.Count);
+            logger.LogInformation("Uploaded {Count} images to WordPress", wpUploadedMedia.Count);
 
-            // Step 6: Format HTML, update draft, and publish
-            publishResult = await context.CallActivityAsync<WordPressPostResult>(
+            // Merge: use WP MediaId for featured_image, but keep Blob SourceUrl for HTML
+            // If Blob upload succeeded, override SourceUrl; otherwise keep WP SourceUrl
+            foreach (var wpMedia in wpUploadedMedia)
+            {
+                var blobMatch = mergedMedia.FirstOrDefault(m => m.FactIndex == wpMedia.FactIndex);
+                if (blobMatch != null)
+                {
+                    blobMatch.MediaId = wpMedia.MediaId; // WP media ID for featured_image field
+                    // SourceUrl stays as Blob URL (already set)
+                }
+                else
+                {
+                    // Blob upload failed for this image — use WP URL as fallback
+                    mergedMedia.Add(new UploadedMedia
+                    {
+                        FactIndex = wpMedia.FactIndex,
+                        MediaId = wpMedia.MediaId,
+                        SourceUrl = wpMedia.SourceUrl
+                    });
+                }
+            }
+
+            // Step 7: Format HTML (with Blob URLs) + publish to WordPress
+            publishResult = await context.CallActivityAsync<FormatAndPublishResult>(
                 nameof(FormatAndPublishActivity),
                 new PublishInput
                 {
                     Content = content,
                     Seo = seo,
-                    Media = uploadedMedia,
+                    Media = mergedMedia,           // Blob SourceUrls in HTML, WP MediaId for featured_image
                     TodayDate = todayDate,
                     DraftPostId = draft.PostId,
                     Backlinks = backlinksResult.Backlinks,
@@ -142,7 +208,7 @@ public static class CarFactsOrchestrator
             // No images — publish text-only directly
             logger.LogWarning("No images generated — publishing text-only post");
 
-            publishResult = await context.CallActivityAsync<WordPressPostResult>(
+            publishResult = await context.CallActivityAsync<FormatAndPublishResult>(
                 nameof(FormatAndPublishActivity),
                 new PublishInput
                 {
@@ -157,9 +223,26 @@ public static class CarFactsOrchestrator
                 new TaskOptions(WordPressRetryPolicy));
         }
 
-        logger.LogInformation("Post published: {PostUrl}", publishResult.PostUrl);
+        logger.LogInformation("WP post published: {PostUrl}", publishResult.WordPress.PostUrl);
 
-        // Step 7: Social media queue generation + keyword storage (best-effort, parallel)
+        // Step 8: Save post to Cosmos DB 'posts' container (parallel track)
+        var savePostTask = context.CallActivityAsync<bool>(
+            nameof(SavePostToCosmosActivity),
+            new SavePostInput
+            {
+                HtmlContent = publishResult.HtmlContent,
+                PostUrl = canonicalPostUrl,
+                WordPressPostUrl = publishResult.WordPress.PostUrl,
+                WordPressPostId = publishResult.WordPress.PostId,
+                Slug = slug,
+                PublishedAt = publishDate,
+                Content = content,
+                Seo = seo,
+                BlobResults = blobResults
+            },
+            new TaskOptions(WordPressRetryPolicy));
+
+        // Step 9: Social media queue generation + keyword storage (best-effort, parallel)
         var socialSettings = await context.CallActivityAsync<SocialMediaContentSettings>(
             nameof(GetSocialMediaSettingsActivity),
             "read");
@@ -168,7 +251,7 @@ public static class CarFactsOrchestrator
             nameof(SocialMediaOrchestrator),
             new SocialMediaOrchestratorInput
             {
-                PostUrl = publishResult.PostUrl,
+                PostUrl = canonicalPostUrl,
                 PostTitle = seo.MainTitle,
                 FactsPerDay = socialSettings.FactsPerDay,
                 LinkPostsPerDay = socialSettings.LinkPostsPerDay,
@@ -186,42 +269,57 @@ public static class CarFactsOrchestrator
             {
                 Content = content,
                 Seo = seo,
-                PostUrl = publishResult.PostUrl,
-                PublishDate = context.CurrentUtcDateTime,
+                PostUrl = canonicalPostUrl,
+                PublishDate = publishDate,
                 Backlinks = backlinksResult.Backlinks,
                 RelatedPosts = backlinksResult.RelatedPosts,
-                Media = uploadedMedia,
+                Media = mergedMedia,
                 PostTitle = seo.MainTitle
             },
             new TaskOptions(WordPressRetryPolicy));
 
-        // Step 8: Web Story creation (best-effort, parallel)
+        // Step 10: Web Story creation (best-effort)
         Task<WordPressPostResult>? webStoryTask = null;
         var webStoriesEnabled = await context.CallActivityAsync<bool>(
             nameof(GetWebStoriesEnabledActivity),
             "check");
         if (webStoriesEnabled)
         {
-            var featuredImageUrl = uploadedMedia.Count > 0 ? uploadedMedia[0].SourceUrl : string.Empty;
+            var featuredImageUrl = mergedMedia.Count > 0 ? mergedMedia[0].SourceUrl : string.Empty;
             webStoryTask = context.CallActivityAsync<WordPressPostResult>(
                 nameof(CreateWebStoryActivity),
                 new CreateWebStoryInput
                 {
                     Facts = content.Facts,
                     MainTitle = seo.MainTitle,
-                    PostUrl = publishResult.PostUrl,
+                    PostUrl = canonicalPostUrl,
                     Excerpt = seo.MetaDescription,
                     FeaturedImageUrl = featuredImageUrl,
-                    Media = uploadedMedia
+                    Media = mergedMedia
                 },
                 new TaskOptions(WordPressRetryPolicy));
         }
+
+        // Wait for all best-effort tasks
+        try { await savePostTask; }
+        catch (Exception ex) { logger.LogWarning("Cosmos post save failed (non-blocking): {Message}", ex.Message); }
 
         try { await socialTask; }
         catch (Exception ex) { logger.LogWarning("Social media queue generation failed (non-blocking): {Message}", ex.Message); }
 
         try { await keywordTask; }
         catch (Exception ex) { logger.LogWarning("Keyword storage failed (non-blocking): {Message}", ex.Message); }
+
+        // Step 11: Regenerate sitemap + RSS (best-effort, after post is saved)
+        var sitemapTask = context.CallActivityAsync<bool>(
+            nameof(GenerateSitemapActivity),
+            "post-published",
+            new TaskOptions(BlobRetryPolicy));
+
+        var rssFeedTask = context.CallActivityAsync<bool>(
+            nameof(GenerateRssFeedActivity),
+            "post-published",
+            new TaskOptions(BlobRetryPolicy));
 
         if (webStoryTask != null)
         {
@@ -233,7 +331,13 @@ public static class CarFactsOrchestrator
             catch (Exception ex) { logger.LogWarning("Web Story creation failed (non-blocking): {Message}", ex.Message); }
         }
 
-        logger.LogInformation("CarFacts pipeline complete for {Date}: {PostUrl}", todayDate, publishResult.PostUrl);
-        return publishResult.PostUrl;
+        try { await sitemapTask; }
+        catch (Exception ex) { logger.LogWarning("Sitemap generation failed (non-blocking): {Message}", ex.Message); }
+
+        try { await rssFeedTask; }
+        catch (Exception ex) { logger.LogWarning("RSS feed generation failed (non-blocking): {Message}", ex.Message); }
+
+        logger.LogInformation("CarFacts pipeline complete for {Date}: {PostUrl}", todayDate, canonicalPostUrl);
+        return canonicalPostUrl;
     }
 }

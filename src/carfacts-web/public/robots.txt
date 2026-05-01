@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Disallow admin/API paths
+Disallow: /api/
+Disallow: /_next/
+
+# Sitemaps
+Sitemap: https://carfactsdaily.com/sitemap_index.xml

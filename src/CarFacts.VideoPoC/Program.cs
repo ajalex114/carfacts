@@ -18,55 +18,45 @@ var websiteUrl   = config["Video:WebsiteUrl"] ?? "carfactsdaily.com";
 var ffmpegPath   = config["Video:FfmpegPath"] ?? "ffmpeg";
 var pythonPath   = config["Tts:PythonPath"] ?? "python";
 var ffmpegDir    = config["Tts:FfmpegDir"] ?? "";
-var pexelsKey    = config["Pexels:ApiKey"] ?? "";
 
-// ── Car fact (POC: hard-coded) ───────────────────────────────────────────────
-// ~50 words → ~20s narration with neural TTS
-var carFact =
-    "In 1908, Henry Ford introduced the Model T — " +
-    "the first car built for ordinary people. " +
-    "Ford painted every one black, " +
-    "because black paint dried the fastest, keeping the assembly line moving. " +
-    "At peak production, a new Model T rolled off the line every 24 seconds. " +
-    "It didn't just change driving. It changed the world.";
+// LLM-based image query extraction (falls back to regex if OpenAI not configured)
+var queryExtractor = new ImageQueryExtractorService(
+    config["OpenAI:Endpoint"],
+    config["OpenAI:ApiKey"],
+    config["OpenAI:DeploymentName"]);
+
+// ── Car fact — LLM-generated ─────────────────────────────────────────────────
+var factService = new CarFacts.VideoPoC.Services.CarFactGenerationService(
+    config["OpenAI:Endpoint"],
+    config["OpenAI:ApiKey"],
+    config["OpenAI:DeploymentName"]);
+
+Console.Write("🤖  Generating car fact via LLM... ");
+var carFact = await factService.GenerateFactAsync();
+Console.WriteLine("done.");
 
 // ── Output directory ────────────────────────────────────────────────────────
 var outputDir    = Path.Combine(Directory.GetCurrentDirectory(), "poc_output");
-var clipsDir     = Path.Combine(outputDir, "clips_cache");
 Directory.CreateDirectory(outputDir);
 
-var imagePath    = Path.Combine(outputDir, "car.jpg");
 var audioPath    = Path.Combine(outputDir, "narration.mp3");
 var subtitlePath = Path.Combine(outputDir, "subtitles.ass");
 var musicPath    = Path.Combine(outputDir, "music.mp3");
 var outputPath   = Path.Combine(outputDir, "carfact_video.mp4");
 
-var useDynamicClips = !string.IsNullOrWhiteSpace(pexelsKey)
-                   && pexelsKey != "YOUR_PEXELS_API_KEY";
-
 Console.WriteLine("🚗  CarFacts Video POC");
 Console.WriteLine("────────────────────────────────────────");
 Console.WriteLine($"Fact  : {carFact}");
+Console.WriteLine($"Query : (LLM/regex extract from fact)");
 Console.WriteLine($"Voice : {voiceName}");
-Console.WriteLine($"Clips : {(useDynamicClips ? "Pexels dynamic video" : "static image (add Pexels:ApiKey for video clips)")}");
+Console.WriteLine($"Clips : Bing images + Ken Burns (Wikimedia fallback)");
 Console.WriteLine($"Out   : {outputPath}");
 Console.WriteLine();
 
-// ── 1. Download fallback image (used when no Pexels key) ────────────────────
-if (!useDynamicClips && !File.Exists(imagePath))
-{
-    Console.Write("📷  Downloading sample car image... ");
-    using var http = new HttpClient();
-    http.DefaultRequestHeaders.Add("User-Agent", "CarFacts-VideoPoC/1.0");
-    var bytes = await http.GetByteArrayAsync(
-        "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1080&q=85");
-    await File.WriteAllBytesAsync(imagePath, bytes);
-    Console.WriteLine("done");
-}
-else if (!useDynamicClips)
-{
-    Console.WriteLine("📷  Using cached car.jpg  (delete it to re-download)");
-}
+// ── 1. Extract image search query from fact (LLM or regex fallback) ─────────
+Console.Write("🔍  Extracting image search query... ");
+var imageSearchQuery = await queryExtractor.ExtractQueryAsync(carFact);
+Console.WriteLine($"\"{imageSearchQuery}\"");
 
 // ── 2. TTS narration + word timestamps ──────────────────────────────────────
 List<WordTiming> words;
@@ -118,53 +108,34 @@ var ffmpegExe = ffmpegPath == "ffmpeg" && !string.IsNullOrEmpty(ffmpegDir)
 
 var videoGen = new VideoGenerator(ffmpegExe);
 
-if (useDynamicClips)
+// Plan segments from word timestamps
+var segments = SegmentPlanner.Plan(words, totalDuration, carFact, imageSearchQuery);
+Console.WriteLine($"🗂️   Segments: {segments.Count}");
+foreach (var s in segments)
+    Console.WriteLine($"      [{s.StartSeconds:F1}s–{s.EndSeconds:F1}s] → \"{s.SearchQuery}\"");
+
+// Download images and apply Ken Burns effect
+Console.WriteLine("⬇️   Fetching images (Bing / Wikimedia fallback)...");
+var imageService = new ImageKenBurnsService(ffmpegExe);
+var resolved     = await imageService.ResolveClipsAsync(segments, outputDir);
+Console.WriteLine();
+
+var readyClips = resolved.Where(s => s.ClipPath is not null).ToList();
+if (readyClips.Count == 0)
 {
-    // Plan segments from word timestamps
-    var segments = SegmentPlanner.Plan(words, totalDuration, carFact);
-    Console.WriteLine($"🗂️   Segments: {segments.Count}");
-    foreach (var s in segments)
-        Console.WriteLine($"      [{s.StartSeconds:F1}s–{s.EndSeconds:F1}s] → \"{s.SearchQuery}\"");
-
-    // Download & trim clips from Pexels
-    Console.WriteLine("⬇️   Fetching clips from Pexels...");
-    var pexels   = new PexelsVideoService(pexelsKey, ffmpegExe, clipsDir);
-    var resolved = await pexels.ResolveClipsAsync(segments, outputDir);
-
-    // If any clip failed, fall back to single image for that segment
-    // (GenerateFromClipsAsync handles null ClipPath by skipping)
-    var readyClips = resolved.Where(s => s.ClipPath is not null).ToList();
-    if (readyClips.Count == 0)
-    {
-        Console.WriteLine("⚠️   All clips failed — falling back to static image.");
-        useDynamicClips = false;
-    }
-    else
-    {
-        Console.Write("🎬  Rendering video with dynamic clips... ");
-        await videoGen.GenerateFromClipsAsync(
-            readyClips,
-            audioPath,
-            Path.GetFileName(subtitlePath),
-            hasMusic ? musicPath : null,
-            outputPath,
-            totalDuration);
-        Console.WriteLine("done");
-    }
+    Console.WriteLine("⚠️   All image clips failed — aborting.");
+    return;
 }
 
-if (!useDynamicClips)
-{
-    Console.Write("🎬  Rendering video (static image + Ken Burns)... ");
-    await videoGen.GenerateAsync(
-        imagePath,
-        audioPath,
-        Path.GetFileName(subtitlePath),
-        hasMusic ? musicPath : null,
-        outputPath,
-        totalDuration);
-    Console.WriteLine("done");
-}
+Console.Write("🎬  Rendering video with image clips... ");
+await videoGen.GenerateFromClipsAsync(
+    readyClips,
+    audioPath,
+    Path.GetFileName(subtitlePath),
+    hasMusic ? musicPath : null,
+    outputPath,
+    totalDuration);
+Console.WriteLine("done");
 
 Console.WriteLine();
 var sizeKb = new FileInfo(outputPath).Length / 1024;
@@ -172,7 +143,6 @@ Console.WriteLine($"✅  Output : {outputPath}");
 Console.WriteLine($"    Size  : {sizeKb:N0} KB");
 Console.WriteLine();
 Console.WriteLine("💡  Tips:");
-Console.WriteLine("    • Add Pexels:ApiKey to appsettings.json to enable dynamic video clips.");
 Console.WriteLine("    • Drop music.mp3 into poc_output/ and re-run to add background audio.");
-Console.WriteLine("    • Cached Pexels clips live in poc_output/clips_cache/ — delete to refresh.");
+Console.WriteLine("    • Change Video:ImageSearchQuery in appsettings.json to search different images.");
 

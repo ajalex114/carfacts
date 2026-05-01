@@ -71,6 +71,32 @@ public sealed class CosmosDbSettings
 
     public string DatabaseName { get; set; } = "carfacts";
     public string ContainerName { get; set; } = "fact-keywords";
+
+    /// <summary>Container for full PostDocuments (SWA source of truth).</summary>
+    public string PostsContainerName { get; set; } = "posts";
+}
+
+public sealed class BlobStorageSettings
+{
+    public const string SectionName = "BlobStorage";
+
+    /// <summary>Storage account name — used in production with DefaultAzureCredential.</summary>
+    public string AccountName { get; set; } = string.Empty;
+
+    /// <summary>Connection string — used in local development only (never in production).</summary>
+    public string ConnectionString { get; set; } = string.Empty;
+
+    /// <summary>Container name for post images. Public blob access.</summary>
+    public string ImagesContainerName { get; set; } = "post-images";
+
+    /// <summary>Container name for sitemap and RSS XML files. Public blob access.</summary>
+    public string WebFeedsContainerName { get; set; } = "web-feeds";
+
+    /// <summary>
+    /// Public base URL for images (e.g. CDN endpoint or blob service URL).
+    /// Computed automatically from AccountName if empty.
+    /// </summary>
+    public string ImagesPublicBaseUrl { get; set; } = string.Empty;
 }
 
 public sealed class WebStoriesSettings

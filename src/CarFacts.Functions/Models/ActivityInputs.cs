@@ -256,3 +256,31 @@ public sealed class CreateWebStoryInput
     public string FeaturedImageUrl { get; set; } = string.Empty;
     public List<UploadedMedia> Media { get; set; } = [];
 }
+
+/// <summary>
+/// Input for the UploadImagesToBlobActivity.
+/// </summary>
+public sealed class UploadImagesToBlobInput
+{
+    public List<GeneratedImage> Images { get; set; } = [];
+    public List<CarFact> Facts { get; set; } = [];
+    /// <summary>Blob path prefix, e.g. "2026/04/15/my-post-slug/"</summary>
+    public string PathPrefix { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Input for the SavePostToCosmosActivity.
+/// </summary>
+public sealed class SavePostInput
+{
+    public string HtmlContent { get; set; } = string.Empty;
+    /// <summary>Canonical SWA post URL: https://carfactsdaily.com/YYYY/MM/DD/slug/</summary>
+    public string PostUrl { get; set; } = string.Empty;
+    public string WordPressPostUrl { get; set; } = string.Empty;
+    public int WordPressPostId { get; set; }
+    public string Slug { get; set; } = string.Empty;
+    public DateTime PublishedAt { get; set; }
+    public RawCarFactsContent Content { get; set; } = null!;
+    public SeoMetadata Seo { get; set; } = null!;
+    public List<BlobUploadResult> BlobResults { get; set; } = [];
+}
