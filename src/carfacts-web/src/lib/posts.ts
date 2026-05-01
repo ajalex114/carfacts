@@ -2,6 +2,19 @@ import { CosmosClient } from "@azure/cosmos";
 import type { Post, PostFact } from "./types";
 import { MOCK_POSTS } from "./mock-data";
 
+// Decode numeric and common named HTML entities that WordPress encodes in API responses
+function decodeHtmlEntities(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, "\u00a0");
+}
+
 // ---------------------------------------------------------------------------
 // Cosmos DB document shapes (mirror the C# models in CarFacts.Functions)
 // ---------------------------------------------------------------------------
@@ -44,13 +57,22 @@ interface CosmosPostDocument {
 // Mapper: CosmosPostDocument → Post (view model)
 // ---------------------------------------------------------------------------
 
+// Fallback image for posts that have no featured media
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=80&auto=format&fit=crop";
+const BROKEN_IMAGE_PATTERN = /car-facts\.png$/;
+
 function cosmosDocToPost(doc: CosmosPostDocument, issueNumber: number): Post {
+  const heroImageUrl =
+    doc.featuredImageUrl && !BROKEN_IMAGE_PATTERN.test(doc.featuredImageUrl)
+      ? doc.featuredImageUrl
+      : FALLBACK_IMAGE;
+
   const facts: PostFact[] = (doc.facts ?? []).map((f, i) => {
     const img = doc.images?.find((im) => im.factIndex === i);
     return {
       title: f.catchy_title,
       body: f.fact,
-      imageUrl: img?.blobUrl || doc.featuredImageUrl,
+      imageUrl: img?.blobUrl || heroImageUrl,
       imageAlt: img?.altText || f.catchy_title,
     };
   });
@@ -60,17 +82,17 @@ function cosmosDocToPost(doc: CosmosPostDocument, issueNumber: number): Post {
     issueNumber,
     slug: doc.slug,
     postUrl: doc.postUrl,
-    title: doc.title,
-    subtitle: doc.excerpt || doc.metaDescription || "",
-    heroImageUrl: doc.featuredImageUrl,
-    heroImageAlt: doc.images?.[0]?.altText || doc.title,
-    intro: doc.excerpt || "",
+    title: decodeHtmlEntities(doc.title),
+    subtitle: decodeHtmlEntities(doc.excerpt || doc.metaDescription || ""),
+    heroImageUrl,
+    heroImageAlt: doc.images?.[0]?.altText || decodeHtmlEntities(doc.title),
+    intro: decodeHtmlEntities(doc.excerpt || ""),
     facts,
     htmlContent: doc.htmlContent,
     publishedAt: doc.publishedAt,
     category: doc.category || "car-facts",
     keywords: doc.keywords || [],
-    metaDescription: doc.metaDescription || doc.excerpt || "",
+    metaDescription: decodeHtmlEntities(doc.metaDescription || doc.excerpt || ""),
   };
 }
 
