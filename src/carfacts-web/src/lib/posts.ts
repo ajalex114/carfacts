@@ -82,19 +82,24 @@ async function fetchFromCosmos(): Promise<Post[]> {
 
   if (!endpoint || !key) return [];
 
-  const client = new CosmosClient({ endpoint, key });
-  const container = client.database("carfacts").container("posts");
+  try {
+    const client = new CosmosClient({ endpoint, key });
+    const container = client.database("carfacts").container("posts");
 
-  // Fetch oldest-first so we can assign issue numbers sequentially (1 = first post)
-  const query = "SELECT * FROM c ORDER BY c.publishedAt ASC";
-  const { resources } = await container.items
-    .query<CosmosPostDocument>(query)
-    .fetchAll();
+    // Fetch oldest-first so we can assign issue numbers sequentially (1 = first post)
+    const query = "SELECT * FROM c ORDER BY c.publishedAt ASC";
+    const { resources } = await container.items
+      .query<CosmosPostDocument>(query)
+      .fetchAll();
 
-  // Map to Post view models; reverse so newest is first for display
-  return resources
-    .map((doc, index) => cosmosDocToPost(doc, index + 1))
-    .reverse();
+    // Map to Post view models; reverse so newest is first for display
+    return resources
+      .map((doc, index) => cosmosDocToPost(doc, index + 1))
+      .reverse();
+  } catch (err) {
+    console.warn("[posts] Cosmos DB query failed, falling back to mock data:", err);
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
