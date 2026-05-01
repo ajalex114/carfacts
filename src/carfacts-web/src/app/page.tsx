@@ -4,11 +4,13 @@ import Marquee from "@/components/layout/Marquee";
 import HeroPost from "@/components/posts/HeroPost";
 import PostCard from "@/components/posts/PostCard";
 import { SITE_CONFIG } from "@/lib/site-config";
-import { MOCK_POSTS, getLatestPost, getPastPosts } from "@/lib/mock-data";
+import { getLatestPost, getPastPosts } from "@/lib/posts";
 
-export default function Home() {
-  const latest = getLatestPost();
-  const past = getPastPosts();
+export default async function Home() {
+  const latest = await getLatestPost();
+  const past = await getPastPosts();
+
+  if (!latest) return null;
 
   return (
     <>

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MockPost } from "@/lib/mock-data";
+import type { Post } from "@/lib/types";
 import { formatIssueNumber, formatDisplayDate } from "@/lib/site-config";
 
 interface ArchiveCardProps {
-  post: MockPost;
+  post: Post;
 }
 
 /**

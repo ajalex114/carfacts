@@ -19,6 +19,7 @@ project.lock.json
 
 # Secrets
 appsettings.Development.json
+youtube-creds.json
 
 # Logs and cache
 logs/

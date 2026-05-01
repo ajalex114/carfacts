@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "@/components/layout/SiteHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
-import { getMockPostByParams, MOCK_POSTS } from "@/lib/mock-data";
+import { getPostByParams, getAllPostParams } from "@/lib/posts";
 import { formatIssueNumber, formatDisplayDate, SITE_CONFIG } from "@/lib/site-config";
 
 interface PostPageProps {
@@ -17,15 +17,12 @@ interface PostPageProps {
 }
 
 export async function generateStaticParams() {
-  return MOCK_POSTS.map((post) => {
-    const [year, month, day] = post.publishedAt.split("T")[0].split("-");
-    return { year, month, day, slug: post.slug };
-  });
+  return getAllPostParams();
 }
 
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { year, month, day, slug } = await params;
-  const post = getMockPostByParams(year, month, day, slug);
+  const post = await getPostByParams(year, month, day, slug);
   if (!post) return {};
 
   return {
@@ -50,7 +47,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 
 export default async function PostPage({ params }: PostPageProps) {
   const { year, month, day, slug } = await params;
-  const post = getMockPostByParams(year, month, day, slug);
+  const post = await getPostByParams(year, month, day, slug);
   if (!post) notFound();
 
   return (

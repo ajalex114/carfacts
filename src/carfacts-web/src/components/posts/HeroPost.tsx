@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MockPost } from "@/lib/mock-data";
+import type { Post } from "@/lib/types";
 import { formatIssueNumber, formatDisplayDate, SITE_CONFIG } from "@/lib/site-config";
 
 interface HeroPostProps {
-  post: MockPost;
+  post: Post;
 }
 
 /**

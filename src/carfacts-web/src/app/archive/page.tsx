@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import SiteHeader from "@/components/layout/SiteHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
 import ArchiveCard from "@/components/posts/ArchiveCard";
-import { MOCK_POSTS } from "@/lib/mock-data";
+import { getAllPosts } from "@/lib/posts";
 import { SITE_CONFIG } from "@/lib/site-config";
 
 export const metadata: Metadata = {
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description: `Every issue of ${SITE_CONFIG.name}. Browse all car facts by date.`,
 };
 
-export default function ArchivePage() {
-  const posts = MOCK_POSTS;
+export default async function ArchivePage() {
+  const posts = await getAllPosts();
 
   return (
     <>
