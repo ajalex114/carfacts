@@ -1,34 +1,25 @@
-import { SITE_CONFIG } from "@/lib/site-config";
-
 /**
  * Marquee ticker strip — "Five facts.•Every day.•Forever." scrolling band.
- * The items list comes from site-config so changing copy requires zero template edits.
+ * Dark background with large display text, matching the Lovable design.
  */
 export default function Marquee() {
-  // Duplicate 8× so there's always content visible regardless of screen width
-  const items = Array(8).fill(SITE_CONFIG.marqueeItems).flat() as string[];
+  // Six copies keeps the band full at any screen width
+  const copies = Array(6).fill(null);
 
   return (
-    <div
-      className="overflow-hidden border-y border-border bg-background py-3 select-none"
+    <section
+      className="overflow-hidden border-b border-border bg-foreground py-4 text-background select-none"
       aria-hidden="true"
     >
-      <div className="animate-marquee inline-flex gap-0">
-        {/* Two copies side-by-side so the loop is seamless */}
-        {[0, 1].map((copy) => (
-          <span key={copy} className="inline-flex">
-            {items.map((item, i) => (
-              <span
-                key={i}
-                className="kicker mx-4 text-muted-foreground"
-              >
-                {item}
-                <span className="mx-4 text-signal">•</span>
-              </span>
-            ))}
+      <div className="flex animate-[marquee_40s_linear_infinite] gap-12 whitespace-nowrap font-display text-2xl font-bold tracking-tight md:text-3xl">
+        {copies.map((_, i) => (
+          <span key={i} className="flex items-center gap-12">
+            Five facts.<span className="text-signal">●</span>
+            Every day.<span className="text-signal">●</span>
+            Forever.<span className="text-signal">●</span>
           </span>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

@@ -53,7 +53,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <head>
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        {children}
+
         {/* Google AdSense — loads only when publisher ID is configured */}
         {ADSENSE_ID && (
           <Script
@@ -64,9 +66,6 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         )}
-      </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
 
         {/* Google Analytics 4 — loads only when measurement ID is configured */}
         {GA_ID && (

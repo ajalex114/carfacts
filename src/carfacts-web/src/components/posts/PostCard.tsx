@@ -12,55 +12,33 @@ interface PostCardProps {
  */
 export default function PostCard({ post }: PostCardProps) {
   return (
-    <Link href={post.postUrl} className="group block">
+    <Link href={post.postUrl} className="group block animate-fade-up">
       {/* Image */}
-      <div className="aspect-[16/10] w-full overflow-hidden bg-secondary">
+      <div className="aspect-[4/3] w-full overflow-hidden bg-secondary">
         <Image
           src={post.heroImageUrl}
           alt={post.heroImageAlt}
           width={800}
-          height={500}
+          height={600}
+          loading="lazy"
           className="ken-burns h-full w-full object-cover"
         />
       </div>
 
       {/* Meta */}
-      <div className="mt-4">
-        <p className="kicker text-muted-foreground">
-          <span className="text-signal">
-            ISSUE NO.&nbsp;{formatIssueNumber(post.issueNumber)}
-          </span>
-          &nbsp;·&nbsp;{formatDisplayDate(post.publishedAt)}
-        </p>
-
-        <h3 className="mt-2 font-display text-2xl font-bold leading-tight tracking-tight group-hover:text-signal transition-colors md:text-3xl">
-          {post.title}
-        </h3>
-
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">
-          {post.subtitle}
-        </p>
-
-        <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-signal">
-          Read the 5 facts
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="transition-transform group-hover:translate-x-0.5"
-            aria-hidden="true"
-          >
-            <path d="M5 12h14" />
-            <path d="m12 5 7 7-7 7" />
-          </svg>
-        </span>
+      <div className="mt-4 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        <span className="text-signal">ISSUE NO.&nbsp;{formatIssueNumber(post.issueNumber)}</span>
+        <span>·</span>
+        <span>{formatDisplayDate(post.publishedAt)}</span>
       </div>
+
+      <h3 className="mt-2 font-display text-xl font-semibold leading-[1.05] tracking-tight text-foreground transition-colors group-hover:text-signal md:text-2xl">
+        {post.title}
+      </h3>
+
+      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground md:text-base">
+        {post.subtitle}
+      </p>
     </Link>
   );
 }

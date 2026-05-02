@@ -62,9 +62,10 @@ export default function HeroPost({ post }: HeroPostProps) {
 
             <Link
               href={post.postUrl}
-              className="mt-8 inline-flex items-center gap-2 rounded-none border border-foreground bg-foreground px-6 py-3 text-sm font-semibold text-background transition-colors hover:bg-signal hover:border-signal"
+              className="mt-8 inline-flex items-center gap-3 border-b-2 border-foreground pb-1 text-sm font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-signal hover:text-signal"
             >
               Read today&apos;s 5 facts
+              <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>

@@ -177,14 +177,19 @@
   will-change: transform;
 }
 
-/* Marquee animation */
+/* Marquee animation — used by animate-[marquee_40s_linear_infinite] utility */
 @keyframes marquee {
   from { transform: translateX(0);    }
   to   { transform: translateX(-50%); }
 }
-.animate-marquee {
-  animation: marquee 28s linear infinite;
-  white-space: nowrap;
+
+/* Fade-up entry animation for post cards */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out both;
 }
 
 /* Underline grow on hover */
