@@ -4,7 +4,6 @@
     "exclude": [
       "/images/*",
       "/assets/*",
-      "/feed/*",
       "*.{png,jpg,jpeg,gif,webp,svg,ico,css,js,woff,woff2,ttf,eot,xml,txt}"
     ]
   },

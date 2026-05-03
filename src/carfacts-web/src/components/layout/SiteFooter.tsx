@@ -30,7 +30,8 @@ export default function SiteFooter() {
             <ul className="mt-4 space-y-2 text-sm">
               <li><Link href="/" className="underline-grow">Today&apos;s Issue</Link></li>
               <li><Link href="/archive" className="underline-grow">Archive</Link></li>
-              <li><Link href="/about" className="underline-grow">About the Editor</Link></li>
+              <li><Link href="/stories" className="underline-grow">Stories</Link></li>
+              <li><Link href="/about" className="underline-grow">About</Link></li>
             </ul>
           </div>
 
@@ -45,9 +46,6 @@ export default function SiteFooter() {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link href="/feed/rss.xml" className="underline-grow">RSS</Link>
-              </li>
             </ul>
           </div>
         </div>

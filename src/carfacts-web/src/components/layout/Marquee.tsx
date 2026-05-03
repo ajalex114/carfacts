@@ -1,5 +1,4 @@
 "use client";
-import { useMemo } from "react";
 
 const CAR_BRANDS = [
   "Mercedes-Benz",
@@ -33,23 +32,12 @@ const CAR_BRANDS = [
   "Lotus",
 ];
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 /**
  * Marquee ticker strip — scrolling car brand names.
- * Brands are shuffled on every page load (client-side).
  */
 export default function Marquee() {
-  const brands = useMemo(() => shuffle(CAR_BRANDS), []);
   // Duplicate for seamless infinite scroll
-  const items = [...brands, ...brands];
+  const items = [...CAR_BRANDS, ...CAR_BRANDS];
 
   return (
     <section

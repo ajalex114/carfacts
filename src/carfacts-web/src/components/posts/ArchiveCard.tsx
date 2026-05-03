@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
-import { formatIssueNumber, formatDisplayDate } from "@/lib/site-config";
+import { formatIssueNumber, formatDisplayDate, getPostLocalHref } from "@/lib/site-config";
 
 interface ArchiveCardProps {
   post: Post;
@@ -13,7 +13,7 @@ interface ArchiveCardProps {
 export default function ArchiveCard({ post }: ArchiveCardProps) {
   return (
     <Link
-      href={post.postUrl}
+      href={getPostLocalHref(post.publishedAt, post.slug)}
       className="group flex gap-5 border-b border-border py-8 last:border-0"
     >
       {/* Thumbnail */}
@@ -22,8 +22,10 @@ export default function ArchiveCard({ post }: ArchiveCardProps) {
           <Image
             src={post.heroImageUrl}
             alt={post.heroImageAlt}
-            width={400}
-            height={300}
+            width={200}
+            height={150}
+            loading="lazy"
+            sizes="(max-width: 640px) 144px, 192px"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>
