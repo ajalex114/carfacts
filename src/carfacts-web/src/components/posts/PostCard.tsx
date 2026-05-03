@@ -18,9 +18,10 @@ export default function PostCard({ post }: PostCardProps) {
         <Image
           src={post.heroImageUrl}
           alt={post.heroImageAlt}
-          width={800}
-          height={600}
+          width={600}
+          height={450}
           loading="lazy"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
       </div>

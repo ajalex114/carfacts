@@ -35,9 +35,10 @@ export default function HeroPost({ post }: HeroPostProps) {
               <Image
                 src={post.heroImageUrl}
                 alt={post.heroImageAlt}
-                width={1600}
-                height={1280}
+                width={900}
+                height={720}
                 priority
+                sizes="(max-width: 768px) 100vw, 58vw"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
             </div>

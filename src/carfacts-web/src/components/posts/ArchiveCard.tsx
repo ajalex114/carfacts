@@ -22,8 +22,10 @@ export default function ArchiveCard({ post }: ArchiveCardProps) {
           <Image
             src={post.heroImageUrl}
             alt={post.heroImageAlt}
-            width={400}
-            height={300}
+            width={200}
+            height={150}
+            loading="lazy"
+            sizes="(max-width: 640px) 144px, 192px"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>

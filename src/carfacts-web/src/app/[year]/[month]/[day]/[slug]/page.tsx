@@ -84,9 +84,10 @@ export default async function PostPage({ params }: PostPageProps) {
             <Image
               src={post.heroImageUrl}
               alt={post.heroImageAlt}
-              width={1600}
-              height={900}
+              width={800}
+              height={450}
               priority
+              sizes="(max-width: 768px) 100vw, 768px"
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           </div>
@@ -119,8 +120,10 @@ export default async function PostPage({ params }: PostPageProps) {
                           <Image
                             src={fact.imageUrl}
                             alt={fact.imageAlt}
-                            width={1200}
-                            height={675}
+                            width={800}
+                            height={450}
+                            loading="lazy"
+                            sizes="(max-width: 768px) 100vw, 768px"
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
                         </div>
