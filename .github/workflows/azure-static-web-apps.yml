@@ -33,13 +33,22 @@ jobs:
         working-directory: src/carfacts-web
         run: npm ci
 
+      - name: Set site URL
+        id: site_url
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "url=https://brave-pond-064f8920f-${{ github.event.pull_request.number }}.eastus2.7.azurestaticapps.net" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://carfactsdaily.com" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build Next.js static export
         working-directory: src/carfacts-web
         run: npm run build
         env:
           NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
           NEXT_PUBLIC_ADSENSE_PUBLISHER_ID: ${{ secrets.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID }}
-          NEXT_PUBLIC_SITE_URL: https://carfactsdaily.com
+          NEXT_PUBLIC_SITE_URL: ${{ steps.site_url.outputs.url }}
           COSMOS_ENDPOINT: ${{ secrets.COSMOS_ENDPOINT }}
           COSMOS_KEY: ${{ secrets.COSMOS_KEY }}
 
