@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "carfactsdaily.com",
       },
+      {
+        protocol: "https",
+        hostname: "stblobcarfacts5.blob.core.windows.net",
+      },
     ],
   },
 };

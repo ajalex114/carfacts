@@ -1,4 +1,5 @@
 import { CosmosClient } from "@azure/cosmos";
+import { DefaultAzureCredential } from "@azure/identity";
 import type { Post, PostFact } from "./types";
 import { MOCK_POSTS } from "./mock-data";
 
@@ -102,12 +103,12 @@ function cosmosDocToPost(doc: CosmosPostDocument, issueNumber: number): Post {
 
 async function fetchFromCosmos(): Promise<Post[]> {
   const endpoint = process.env.COSMOS_ENDPOINT;
-  const key = process.env.COSMOS_KEY;
 
-  if (!endpoint || !key) return [];
+  if (!endpoint) return [];
 
   try {
-    const client = new CosmosClient({ endpoint, key });
+    const credential = new DefaultAzureCredential();
+    const client = new CosmosClient({ endpoint, aadCredentials: credential });
     const container = client.database("carfacts").container("posts");
 
     // Fetch oldest-first so we can assign issue numbers sequentially (1 = first post)
