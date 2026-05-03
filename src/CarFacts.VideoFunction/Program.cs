@@ -49,6 +49,10 @@ var host = new HostBuilder()
 
         services.AddSingleton(new SubtitleGenerator());
 
+        // NewsService — fetches recent automotive RSS news for brand-aware fact generation
+        services.AddSingleton<NewsService>(sp =>
+            new NewsService(sp.GetRequiredService<ILogger<NewsService>>()));
+
         // IConfiguration needed by HttpStartFunction to read connection strings at runtime
         services.AddSingleton(cfg);
     })

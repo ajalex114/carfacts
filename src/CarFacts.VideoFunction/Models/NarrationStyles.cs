@@ -5,7 +5,7 @@ namespace CarFacts.VideoFunction.Models;
 /// Each style gives the LLM a different structural/tonal directive so
 /// consecutive videos feel distinct even when covering similar cars.
 ///
-/// Styles in rotation (A, B, C, E, F, G, H — D excluded by design):
+/// Styles in rotation (A, B, C, F, G, H):
 /// </summary>
 public static class NarrationStyles
 {
@@ -19,9 +19,6 @@ public static class NarrationStyles
 
         new("StyleC-SurrenderToIt",
             "Acknowledge how impractical, expensive or irrational the car is — and then reveal you simply don't care. The closer should feel like helpless, joyful surrender. Self-aware but unapologetic."),
-
-        new("StyleE-NumberFirst",
-            "Lead immediately with a raw, striking number or spec (horsepower, speed, price, weight). Then escalate from that number to an almost philosophical or existential conclusion about what the car represents."),
 
         new("StyleF-CinematicMoment",
             "Paint a single vivid moment — the exact second the driver plants their foot, or the first time they hear the engine. Make the listener feel like they are there. Reveal the car's identity through that moment."),

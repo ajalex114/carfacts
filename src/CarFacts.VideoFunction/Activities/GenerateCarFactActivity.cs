@@ -14,10 +14,14 @@ namespace CarFacts.VideoFunction.Activities;
 ///            hasn't appeared in the last 5 days (queried from historical entries).
 /// Level 3 — LRU fallback: every model was used recently; pick the oldest (least-recently-used)
 ///            brand+model from the tracking store.
+///
+/// After brand selection, attempts to find recent news (≤7 days) for the brand via NewsService.
+/// If news is found it is passed as context to the LLM for a more topical fact.
 /// </summary>
 public class GenerateCarFactActivity(
     CarFactGenerationService factService,
     VideoTrackingService trackingService,
+    NewsService newsService,
     ILogger<GenerateCarFactActivity> logger)
 {
     [Function(nameof(GenerateCarFactActivity))]
@@ -31,7 +35,14 @@ public class GenerateCarFactActivity(
             input.JobId, selection.Reason, selection.Brand, selection.Model ?? "(any)",
             input.NarrationStyle, input.VideoLengthSecMin, input.VideoLengthSecMax);
 
-        var fact = await factService.GenerateFactAsync(selection, input.VideoLengthSecMin, input.VideoLengthSecMax, input.NarrationStyle);
+        // Step B: fetch recent news for the resolved brand (non-fatal, falls back to null)
+        var newsContext = await newsService.GetLatestNewsAsync(selection.Brand);
+        if (newsContext != null)
+            logger.LogInformation("[{JobId}] Using news context from {Source}: \"{Title}\"",
+                input.JobId, newsContext.Source, newsContext.Title);
+
+        var fact = await factService.GenerateFactAsync(
+            selection, input.VideoLengthSecMin, input.VideoLengthSecMax, input.NarrationStyle, newsContext);
 
         logger.LogInformation("[{JobId}] GenerateCarFact: → \"{Preview}\"",
             input.JobId, fact[..Math.Min(80, fact.Length)]);

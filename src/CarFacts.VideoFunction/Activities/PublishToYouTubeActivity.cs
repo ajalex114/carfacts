@@ -113,7 +113,7 @@ public class PublishToYouTubeActivity(
             },
             Status = new VideoStatus
             {
-                PrivacyStatus        = "public",
+                PrivacyStatus        = config["YouTube:PrivacyStatus"] ?? "private",
                 SelfDeclaredMadeForKids = false
             }
         };

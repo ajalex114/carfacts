@@ -41,10 +41,13 @@ public class HttpStartFunction(
         var storageConn = configuration["Storage:ConnectionString"]
             ?? throw new InvalidOperationException("Storage:ConnectionString not configured");
 
+        // Pick a random narration style for ad-hoc manual triggers so each test feels distinct
+        var narrationStyle = NarrationStyles.ForSlot(Random.Shared.Next(NarrationStyles.All.Length)).Name;
+
         // Schedule orchestration — Durable returns the instanceId which becomes our jobId
         var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
             nameof(VideoOrchestrator),
-            new OrchestratorInput(jobId, fact, storageConn, imageSearchQuery));
+            new OrchestratorInput(jobId, fact, storageConn, imageSearchQuery, NarrationStyle: narrationStyle));
 
         logger.LogInformation("StartVideo: instanceId={Id} fact={Fact}",
             instanceId, fact == null ? "(LLM will generate)" : fact[..Math.Min(60, fact.Length)]);
