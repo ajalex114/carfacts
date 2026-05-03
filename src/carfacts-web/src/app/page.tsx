@@ -53,13 +53,9 @@ export default async function Home() {
         {/* Editor's note */}
         <section className="border-y border-border bg-secondary py-20">
           <div className="mx-auto max-w-4xl px-6 text-center">
-            <p className="kicker text-signal">The Editor&apos;s Note</p>
-            <blockquote className="mt-6 font-display text-3xl font-medium italic leading-tight tracking-tight md:text-5xl">
+            <blockquote className="font-display text-3xl font-medium italic leading-tight tracking-tight md:text-5xl">
               &ldquo;{SITE_CONFIG.editorNote.quote}&rdquo;
             </blockquote>
-            <p className="mt-6 text-sm uppercase tracking-[0.22em] text-muted-foreground">
-              {SITE_CONFIG.editorNote.attribution}
-            </p>
           </div>
         </section>
       </main>

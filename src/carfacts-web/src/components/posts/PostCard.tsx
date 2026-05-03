@@ -21,7 +21,7 @@ export default function PostCard({ post }: PostCardProps) {
           width={800}
           height={600}
           loading="lazy"
-          className="ken-burns h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
       </div>
 

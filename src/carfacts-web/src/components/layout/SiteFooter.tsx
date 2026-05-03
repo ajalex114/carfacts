@@ -29,7 +29,7 @@ export default function SiteFooter() {
             <p className="kicker text-muted-foreground">Sections</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li><Link href="/" className="underline-grow">Today&apos;s Issue</Link></li>
-              <li><Link href="/archive" className="underline-grow">The Archive</Link></li>
+              <li><Link href="/archive" className="underline-grow">Archive</Link></li>
               <li><Link href="/about" className="underline-grow">About the Editor</Link></li>
             </ul>
           </div>

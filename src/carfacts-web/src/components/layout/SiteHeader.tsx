@@ -11,7 +11,7 @@ export default function SiteHeader() {
         <div className="hidden items-center justify-between py-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground md:flex">
           <span>{formatHeaderDate()}</span>
           <span className="text-signal">•</span>
-          <span>Five facts. Every day. Forever.</span>
+          <span>Know your car&apos;s history</span>
         </div>
 
         {/* Logo + nav */}

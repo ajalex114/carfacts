@@ -19,7 +19,7 @@ export const SITE_CONFIG = {
    */
   logoWords: ["Car", "Facts", "Daily"] as const,
 
-  tagline: "Five facts.\u2022Every day.\u2022Forever.",
+  tagline: "Know your car\u2019s history",
 
   description:
     "Daily car facts and automotive knowledge. Discover interesting facts about cars, engines, history, and more — published every single day.",
@@ -29,11 +29,9 @@ export const SITE_CONFIG = {
   /** Used in home page hero kicker */
   publicationName: "Car Facts Daily",
 
-  /** The marquee strip content — repeated automatically */
+  /** The marquee strip content — randomized car brands at runtime */
   marqueeItems: [
-    "Five facts.",
-    "Every day.",
-    "Forever.",
+    "Mercedes-Benz", "BMW", "Tesla", "Ferrari", "Porsche",
   ],
 
   nav: [

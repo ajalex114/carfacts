@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/layout/SiteHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
-import ArchiveCard from "@/components/posts/ArchiveCard";
+import ArchiveSearch from "@/components/posts/ArchiveSearch";
 import { getAllPosts } from "@/lib/posts";
 import { SITE_CONFIG } from "@/lib/site-config";
 
@@ -21,7 +21,7 @@ export default async function ArchivePage() {
         <div className="mx-auto max-w-7xl px-6 py-10 md:py-16">
           {/* Page header */}
           <header className="border-b border-border pb-10 md:pb-14">
-            <p className="kicker text-signal mb-3">The Archive</p>
+            <p className="kicker text-signal mb-3">Archive</p>
             <h1 className="font-display text-5xl font-bold tracking-tight leading-[0.95] md:text-7xl">
               Every issue.
               <br />
@@ -33,12 +33,8 @@ export default async function ArchivePage() {
             </p>
           </header>
 
-          {/* Archive list */}
-          <div>
-            {posts.map((post) => (
-              <ArchiveCard key={post.id} post={post} />
-            ))}
-          </div>
+          {/* Search + filtered list */}
+          <ArchiveSearch posts={posts} />
         </div>
       </main>
 

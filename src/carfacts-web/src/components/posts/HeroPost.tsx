@@ -38,7 +38,7 @@ export default function HeroPost({ post }: HeroPostProps) {
                 width={1600}
                 height={1280}
                 priority
-                className="ken-burns h-full w-full object-cover"
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
             </div>
           </Link>
