@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
-import { formatIssueNumber, formatDisplayDate } from "@/lib/site-config";
+import { formatIssueNumber, formatDisplayDate, getPostLocalHref } from "@/lib/site-config";
 
 interface PostCardProps {
   post: Post;
@@ -12,7 +12,7 @@ interface PostCardProps {
  */
 export default function PostCard({ post }: PostCardProps) {
   return (
-    <Link href={post.postUrl} className="group block animate-fade-up">
+    <Link href={getPostLocalHref(post.publishedAt, post.slug)} className="group block animate-fade-up">
       {/* Image */}
       <div className="aspect-[4/3] w-full overflow-hidden bg-secondary">
         <Image

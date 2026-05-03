@@ -91,21 +91,8 @@ export default async function PostPage({ params }: PostPageProps) {
             />
           </div>
 
-          {/* Intro */}
-          <p className="mt-8 text-base leading-relaxed text-muted-foreground md:text-lg">
-            {post.intro}
-          </p>
-
-          {/* Five Facts */}
           {/* Five Facts — structured (new posts) or raw HTML (migrated WP posts) */}
           <section className="mt-12">
-            <div className="mb-8 border-t border-border pt-8">
-              <p className="kicker text-signal mb-1">The Five Facts</p>
-              <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-                What we learned today.
-              </h2>
-            </div>
-
             {post.facts.length > 0 ? (
               <ol className="space-y-16">
                 {post.facts.map((fact, index) => (
@@ -146,7 +133,8 @@ export default async function PostPage({ params }: PostPageProps) {
                 ))}
               </ol>
             ) : post.htmlContent ? (
-              /* Migrated WordPress posts: render the original HTML */
+              /* Migrated WordPress posts: render the original HTML, rewriting
+                 absolute production links to the current host so local dev works */
               <div
                 className="prose prose-neutral max-w-none text-foreground
                            prose-headings:font-display prose-headings:tracking-tight
@@ -154,7 +142,12 @@ export default async function PostPage({ params }: PostPageProps) {
                            prose-p:text-muted-foreground prose-p:leading-relaxed
                            prose-img:rounded-none prose-img:w-full
                            prose-a:text-signal prose-a:no-underline hover:prose-a:underline"
-                dangerouslySetInnerHTML={{ __html: post.htmlContent }}
+                dangerouslySetInnerHTML={{
+                  __html: post.htmlContent.replaceAll(
+                    "https://carfactsdaily.com",
+                    SITE_CONFIG.baseUrl
+                  ),
+                }}
               />
             ) : null}
           </section>

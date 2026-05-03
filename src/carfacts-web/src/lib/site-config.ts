@@ -24,7 +24,7 @@ export const SITE_CONFIG = {
   description:
     "Daily car facts and automotive knowledge. Discover interesting facts about cars, engines, history, and more — published every single day.",
 
-  baseUrl: "https://carfactsdaily.com",
+  baseUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://carfactsdaily.com",
 
   /** Used in home page hero kicker */
   publicationName: "Car Facts Daily",
@@ -37,6 +37,7 @@ export const SITE_CONFIG = {
   nav: [
     { label: "Today", href: "/" },
     { label: "Archive", href: "/archive" },
+    { label: "Stories", href: "/stories" },
     { label: "About", href: "/about" },
   ],
 
@@ -59,9 +60,9 @@ export const SITE_CONFIG = {
   /** Open Graph / Twitter card defaults */
   og: {
     twitterHandle: "@carfactsdaily",
-    defaultImage: "https://carfactsdaily.com/og-image.png",
+    defaultImage: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://carfactsdaily.com"}/og-image.png`,
   },
-} as const;
+};
 
 /** Format a JS Date as "Friday, May 1, 2026" */
 export function formatHeaderDate(date: Date = new Date()): string {
@@ -85,4 +86,10 @@ export function formatDisplayDate(dateStr: string): string {
 /** Zero-pad issue number to 3 digits: 7 → "007" */
 export function formatIssueNumber(n: number): string {
   return String(n).padStart(3, "0");
+}
+
+/** Build the local Next.js route for a post: /{year}/{month}/{day}/{slug} */
+export function getPostLocalHref(publishedAt: string, slug: string): string {
+  const [year, month, day] = publishedAt.split("T")[0].split("-");
+  return `/${year}/${month}/${day}/${slug}`;
 }

@@ -107,8 +107,11 @@ async function fetchFromCosmos(): Promise<Post[]> {
   if (!endpoint) return [];
 
   try {
-    const credential = new DefaultAzureCredential();
-    const client = new CosmosClient({ endpoint, aadCredentials: credential });
+    // Prefer key-based auth (works in GitHub Actions CI) over DefaultAzureCredential (works locally)
+    const key = process.env.COSMOS_KEY;
+    const client = key
+      ? new CosmosClient({ endpoint, key })
+      : new CosmosClient({ endpoint, aadCredentials: new DefaultAzureCredential() });
     const container = client.database("carfacts").container("posts");
 
     // Fetch oldest-first so we can assign issue numbers sequentially (1 = first post)
@@ -186,11 +189,10 @@ export async function getPostByParams(
 ): Promise<Post | null> {
   const posts = await getAllPosts();
   return (
-    posts.find(
-      (p) =>
-        p.slug === slug &&
-        p.postUrl.includes(`/${year}/${month}/${day}/`)
-    ) ?? null
+    posts.find((p) => {
+      const [y, m, d] = p.publishedAt.split("T")[0].split("-");
+      return p.slug === slug && y === year && m === month && d === day;
+    }) ?? null
   );
 }
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Post } from "@/lib/types";
-import { formatIssueNumber, formatDisplayDate, SITE_CONFIG } from "@/lib/site-config";
+import { formatIssueNumber, formatDisplayDate, SITE_CONFIG, getPostLocalHref } from "@/lib/site-config";
 
 interface HeroPostProps {
   post: Post;
@@ -28,7 +28,7 @@ export default function HeroPost({ post }: HeroPostProps) {
         <div className="mt-8 grid gap-10 md:grid-cols-12 md:gap-12">
           {/* Hero image */}
           <Link
-            href={post.postUrl}
+            href={getPostLocalHref(post.publishedAt, post.slug)}
             className="group order-2 block overflow-hidden md:order-1 md:col-span-7"
           >
             <div className="aspect-[5/4] w-full overflow-hidden bg-secondary">
@@ -61,7 +61,7 @@ export default function HeroPost({ post }: HeroPostProps) {
             </p>
 
             <Link
-              href={post.postUrl}
+              href={getPostLocalHref(post.publishedAt, post.slug)}
               className="mt-8 inline-flex items-center gap-3 border-b-2 border-foreground pb-1 text-sm font-semibold uppercase tracking-[0.2em] text-foreground transition hover:border-signal hover:text-signal"
             >
               Read today&apos;s 5 facts

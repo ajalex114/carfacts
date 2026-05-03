@@ -15,6 +15,7 @@ Generate exactly 5 unique and fascinating automotive facts that happened on {{DA
 - Prioritize facts that marked a REVOLUTION or INNOVATION in the automobile industry — moments that changed how cars were built, sold, driven, or regulated. Examples: first mass-produced car, introduction of ABS, first hybrid vehicle, crash test standards, autonomous driving milestones
 - For each fact, explain the BEFORE and AFTER — what the industry looked like before this event, what changed because of it, and how it influenced the cars we drive today
 - Create individual CATCHY titles for each fact (40-60 characters each)
+- Do NOT start any fact with "TIL" or "Today I Learned"
 
 Return ONLY valid JSON with this exact structure (no markdown, no code blocks, just pure JSON):
 {
