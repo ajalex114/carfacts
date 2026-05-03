@@ -1,3 +1,4 @@
+using CarFacts.VideoFunction.Models;
 using System.Text;
 using System.Text.Json;
 
@@ -22,20 +23,49 @@ public class CarFactGenerationService(
         return File.Exists(path) ? File.ReadAllText(path) : string.Empty;
     });
 
-    public async Task<string> GenerateFactAsync()
+    // Full pool of premium brands — luxury, sports, supercar, hypercar, muscle.
+    // No mainstream or economy cars.
+    public static readonly string[] AllBrands =
+    [
+        "Ferrari", "Lamborghini", "Porsche", "McLaren", "Bugatti", "Koenigsegg",
+        "Pagani", "Rimac", "Pininfarina", "Czinger", "SSC North America", "Hennessey",
+        "Aston Martin", "Rolls-Royce", "Bentley", "Maybach", "Mercedes-AMG", "BMW M",
+        "Lotus", "Maserati", "Alfa Romeo", "Nissan GT-R", "Ford GT",
+        "Lexus LFA", "Cadillac CT5-V Blackwing", "Chevrolet Corvette Z06",
+        "Dodge Viper", "Dodge Challenger Hellcat", "Ford Mustang Shelby GT500",
+        "Lucid Air Sapphire", "Tesla Model S Plaid"
+    ];
+
+    public Task<string> GenerateFactAsync() => GenerateFactAsync([], 15, 18);
+    public Task<string> GenerateFactAsync(IEnumerable<string> excludedBrands) => GenerateFactAsync(excludedBrands, 15, 18);
+
+    public async Task<string> GenerateFactAsync(IEnumerable<string> excludedBrands, int targetSecMin, int targetSecMax)
     {
         if (string.IsNullOrWhiteSpace(openAiEndpoint) || string.IsNullOrWhiteSpace(openAiApiKey))
             throw new InvalidOperationException(
                 "OpenAI:Endpoint and OpenAI:ApiKey must be configured. No hardcoded fallback — all facts are LLM-generated.");
 
-        var result = await CallOpenAiAsync();
+        var result = await CallOpenAiAsync(null, excludedBrands, targetSecMin, targetSecMax);
         if (string.IsNullOrWhiteSpace(result))
             throw new InvalidOperationException("OpenAI returned an empty response for car fact generation.");
 
         return result.Trim();
     }
 
-    private async Task<string?> CallOpenAiAsync()
+    public async Task<string> GenerateFactAsync(BrandModelSelection selection, int targetSecMin, int targetSecMax, string narrationStyle = "")
+    {
+        if (string.IsNullOrWhiteSpace(openAiEndpoint) || string.IsNullOrWhiteSpace(openAiApiKey))
+            throw new InvalidOperationException(
+                "OpenAI:Endpoint and OpenAI:ApiKey must be configured. No hardcoded fallback — all facts are LLM-generated.");
+
+        var result = await CallOpenAiAsync(selection, [], targetSecMin, targetSecMax, narrationStyle);
+        if (string.IsNullOrWhiteSpace(result))
+            throw new InvalidOperationException("OpenAI returned an empty response for car fact generation.");
+
+        return result.Trim();
+    }
+
+    private async Task<string?> CallOpenAiAsync(BrandModelSelection? selection, IEnumerable<string> excludedBrands, int targetSecMin = 15, int targetSecMax = 18, string narrationStyle = "")
     {
         var model    = string.IsNullOrWhiteSpace(deploymentName) ? "gpt-35-turbo" : deploymentName;
         var endpoint = openAiEndpoint!.TrimEnd('/');
@@ -45,16 +75,57 @@ public class CarFactGenerationService(
         if (string.IsNullOrWhiteSpace(prompt))
             return null;
 
+        // Target word count: ~2.5 words/sec spoken (natural conversational pace)
+        var targetWords = (int)Math.Round((targetSecMin + targetSecMax) / 2.0 * 2.5);
+
+        // Resolve narration style instruction (if provided)
+        var styleInstruction = "";
+        if (!string.IsNullOrWhiteSpace(narrationStyle))
+        {
+            var style = NarrationStyles.All.FirstOrDefault(s => s.Name == narrationStyle);
+            if (style != null)
+                styleInstruction = $" Narration style: {style.Instruction}";
+        }
+
+        string userMessage;
+        if (selection != null)
+        {
+            var modelPart = !string.IsNullOrWhiteSpace(selection.Model)
+                ? $" {selection.Model}"
+                : string.Empty;
+            userMessage = $"Generate a car fact now about the {selection.Brand}{modelPart}. " +
+                          $"Target: {targetWords} words (~{targetSecMin}-{targetSecMax} seconds spoken)." +
+                          $"{styleInstruction} " +
+                          $"[sel:{selection.Reason},uid:{Guid.NewGuid():N},{DateTime.UtcNow:HHmmss}]";
+        }
+        else
+        {
+            var excluded = excludedBrands
+                .Select(b => b.ToLowerInvariant())
+                .ToHashSet();
+            var available = AllBrands
+                .Where(b => !excluded.Contains(b.ToLowerInvariant()))
+                .ToArray();
+            if (available.Length == 0) available = AllBrands;
+
+            var brand = available[Random.Shared.Next(available.Length)];
+            var excludedHint = excluded.Count > 0
+                ? $" Avoid these brands that were recently used: {string.Join(", ", excluded)}."
+                : string.Empty;
+            userMessage = $"Generate a car fact now about a {brand} model. " +
+                          $"Target: {targetWords} words (~{targetSecMin}-{targetSecMax} seconds spoken)." +
+                          $"{excludedHint}{styleInstruction} [uid:{Guid.NewGuid():N},{DateTime.UtcNow:HHmmss}]";
+        }
+
         var body = JsonSerializer.Serialize(new
         {
             messages = new[]
             {
                 new { role = "system", content = prompt },
-                // Unique token per call prevents any API-side caching from returning identical results.
-                new { role = "user",   content = $"Generate a car fact now. [uid:{Guid.NewGuid():N},{DateTime.UtcNow:HHmmss}]" }
+                new { role = "user",   content = userMessage }
             },
             max_tokens  = 150,
-            temperature = 0.9   // high variety — each of the 5 daily runs gets a different fact
+            temperature = 0.9
         });
 
         using var req = new HttpRequestMessage(HttpMethod.Post, url);

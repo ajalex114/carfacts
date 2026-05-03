@@ -40,11 +40,13 @@ public class StatusFunction(ILogger<StatusFunction> logger)
             await response.WriteAsJsonAsync(new
             {
                 jobId,
-                status       = "completed",
-                videoUrl     = result?.VideoUrl,
-                durationSecs = result?.DurationSeconds,
-                clipCount    = result?.ClipCount,
-                clips        = result?.ClipSources?.Select(c => new
+                status          = "completed",
+                videoUrl        = result?.VideoUrl,
+                durationSecs    = result?.DurationSeconds,
+                clipCount       = result?.ClipCount,
+                youtubeVideoId  = result?.YouTubeVideoId,
+                youtubeVideoUrl = result?.YouTubeVideoUrl,
+                clips           = result?.ClipSources?.Select(c => new
                 {
                     index  = c.Index,
                     source = c.Source,

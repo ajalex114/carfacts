@@ -35,7 +35,7 @@ public class VideoOrchestrator
             logger.LogInformation("[{JobId}] Step 0: GenerateCarFact (LLM)", input.JobId);
             var factResult = await ctx.CallActivityAsync<GenerateCarFactActivityResult>(
                 nameof(GenerateCarFactActivity),
-                new GenerateCarFactActivityInput(input.JobId));
+                new GenerateCarFactActivityInput(input.JobId, input.VideoLengthSecMin, input.VideoLengthSecMax, input.NarrationStyle));
             fact = factResult.Fact;
             logger.LogInformation("[{JobId}] Generated fact: \"{Preview}\"",
                 input.JobId, fact[..Math.Min(80, fact.Length)]);
@@ -113,12 +113,65 @@ public class VideoOrchestrator
                 ClipSources:             clipSources));
 
         logger.LogInformation("[{JobId}] ✅ Complete: {Url}", input.JobId, result.VideoUrl[..80]);
-        return result;
+
+        // ── Step 4.5: Get related video for backlink ─────────────────────────
+        logger.LogInformation("[{JobId}] Step 4.5: GetRelatedVideo", input.JobId);
+        var relatedResult = await ctx.CallActivityAsync<GetRelatedVideoActivityResult>(
+            nameof(GetRelatedVideoActivity),
+            new GetRelatedVideoActivityInput(input.JobId));
+
+        // ── Step 5: Publish to platform ───────────────────────────────────────
+        string? publishedVideoId  = null;
+        string? publishedVideoUrl = null;
+
+        if (string.Equals(input.Platform, "YouTube", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("[{JobId}] Step 5: PublishToYouTube", input.JobId);
+            var ytResult = await ctx.CallActivityAsync<PublishToYouTubeActivityResult>(
+                nameof(PublishToYouTubeActivity),
+                new PublishToYouTubeActivityInput(input.JobId, fact, result.VideoUrl, relatedResult.RelatedVideoUrl));
+
+            publishedVideoId  = ytResult.VideoId;
+            publishedVideoUrl = ytResult.VideoUrl;
+
+            if (publishedVideoUrl != null)
+                logger.LogInformation("[{JobId}] 📺 YouTube: {Url}", input.JobId, publishedVideoUrl);
+            else
+                logger.LogWarning("[{JobId}] YouTube publish skipped/failed: {Reason}", input.JobId, ytResult.Error);
+        }
+        else
+        {
+            logger.LogWarning("[{JobId}] Platform '{Platform}' publishing not yet implemented — skipping publish step",
+                input.JobId, input.Platform);
+        }
+
+        // ── Step 6: Save tracking entry to Cosmos DB ──────────────────────────
+        logger.LogInformation("[{JobId}] Step 6: SavePublishedVideo", input.JobId);
+        try
+        {
+            await ctx.CallActivityAsync<SavePublishedVideoActivityResult>(
+                nameof(SavePublishedVideoActivity),
+                new SavePublishedVideoActivityInput(
+                    input.JobId, fact, publishedVideoId, publishedVideoUrl,
+                    relatedResult.RelatedVideoId, relatedResult.RelatedVideoBrand,
+                    input.Platform));
+            logger.LogInformation("[{JobId}] 📋 Tracking entry saved", input.JobId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("[{JobId}] Tracking save failed (non-fatal): {Error}", input.JobId, ex.Message);
+        }
+
+        return result with { YouTubeVideoId = publishedVideoId, YouTubeVideoUrl = publishedVideoUrl };
     }
 }
 
 public record OrchestratorInput(
-    string JobId,
+    string  JobId,
     string? Fact,
-    string StorageConnectionString,
-    string? ImageSearchQuery = null);
+    string  StorageConnectionString,
+    string? ImageSearchQuery    = null,
+    string  Platform            = "YouTube",
+    int     VideoLengthSecMin   = 15,
+    int     VideoLengthSecMax   = 18,
+    string  NarrationStyle      = "");

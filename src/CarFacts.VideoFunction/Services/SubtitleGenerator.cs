@@ -33,8 +33,10 @@ public class SubtitleGenerator
         // Karaoke: bold, large, thick black outline — sits in lower third
         sb.AppendLine($"Style: Karaoke,Arial,86,{White},{White},&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,4,2,2,60,60,260,1");
 
-        // Hook: medium text with dark backing box — bottom center, last 2 seconds
-        sb.AppendLine($"Style: Hook,Arial,50,{White},{White},&H00000000,&H90000000,1,0,0,0,100,100,0,0,3,0,0,2,60,60,80,1");
+        // Website hook — last 3 seconds, positioned above the karaoke narration text
+        // Hook MarginV=420 places the text bottom at y≈1500 (above karaoke top edge at y≈1545),
+        // so it is visible above the narration and below YouTube's UI chrome at the very top.
+        sb.AppendLine($"Style: Hook,Arial,50,{White},{White},&H00000000,&H90000000,1,0,0,0,100,100,0,0,3,0,0,2,60,60,420,1");
 
         // Watermark: ghost-style overlay
         // Font ~60pt so rendered text ≈ half the frame width (540px of 1080px)

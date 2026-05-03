@@ -2,6 +2,7 @@ using CarFacts.VideoFunction.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
@@ -27,6 +28,18 @@ var host = new HostBuilder()
             cfg["OpenAI:Endpoint"],
             cfg["OpenAI:ApiKey"],
             cfg["OpenAI:DeploymentName"]));
+
+        // VideoTrackingService — writes/reads published-video entries in Cosmos DB
+        services.AddSingleton<VideoTrackingService>(sp =>
+            new VideoTrackingService(
+                cfg["CosmosDB:AccountEndpoint"],
+                sp.GetRequiredService<ILogger<VideoTrackingService>>()));
+
+        // VideoScheduleService — writes daily video schedule to Cosmos DB video-schedule container
+        services.AddSingleton<VideoScheduleService>(sp =>
+            new VideoScheduleService(
+                cfg["CosmosDB:AccountEndpoint"],
+                sp.GetRequiredService<ILogger<VideoScheduleService>>()));
 
         // TTS + subtitle services used by SynthesizeTtsActivity
         services.AddSingleton(_ => new TtsService(
