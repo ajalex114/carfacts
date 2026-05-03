@@ -80,14 +80,14 @@ export default async function PostPage({ params }: PostPageProps) {
           </header>
 
           {/* Hero image */}
-          <div className="mt-8 aspect-[16/9] w-full overflow-hidden bg-secondary">
+          <div className="group mt-8 aspect-[16/9] w-full overflow-hidden bg-secondary">
             <Image
               src={post.heroImageUrl}
               alt={post.heroImageAlt}
               width={1600}
               height={900}
               priority
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           </div>
 
@@ -128,13 +128,13 @@ export default async function PostPage({ params }: PostPageProps) {
 
                       {/* Fact image */}
                       <figure className="mt-6">
-                        <div className="aspect-[16/9] w-full overflow-hidden bg-secondary">
+                        <div className="group aspect-[16/9] w-full overflow-hidden bg-secondary">
                           <Image
                             src={fact.imageUrl}
                             alt={fact.imageAlt}
                             width={1200}
                             height={675}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
                         </div>
                         <figcaption className="mt-2 text-xs text-muted-foreground">
