@@ -175,10 +175,10 @@ export async function getLatestPost(): Promise<Post | null> {
   return posts[0] ?? null;
 }
 
-/** Returns all posts except the most recent one (for the "past issues" grid). */
+/** Returns up to 12 posts after the most recent one (for the "past issues" grid). */
 export async function getPastPosts(): Promise<Post[]> {
   const posts = await getAllPosts();
-  return posts.slice(1);
+  return posts.slice(1, 13);
 }
 
 export async function getPostByParams(
