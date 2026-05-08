@@ -54,7 +54,7 @@ public record RenderActivityResult(string VideoUrl, double DurationSeconds, int 
 public record GenerateQueryActivityInput(string JobId, string Fact);
 public record GenerateQueryActivityResult(string Query);
 
-public record GenerateCarFactActivityInput(string JobId, int VideoLengthSecMin = 15, int VideoLengthSecMax = 18, string NarrationStyle = "");
+public record GenerateCarFactActivityInput(string JobId, int VideoLengthSecMin = 15, int VideoLengthSecMax = 18, string NarrationStyle = "", string Platform = "YouTube");
 public record GenerateCarFactActivityResult(string Fact);
 
 /// <summary>
@@ -68,7 +68,7 @@ public record BrandModelSelection(string Brand, string? Model, string Reason);
 public record PublishToYouTubeActivityInput(string JobId, string Fact, string VideoUrl, string? RelatedVideoUrl = null);
 public record PublishToYouTubeActivityResult(string? VideoId, string? VideoUrl, string? Error);
 
-public record GetRelatedVideoActivityInput(string JobId);
+public record GetRelatedVideoActivityInput(string JobId, string Platform = "YouTube");
 public record GetRelatedVideoActivityResult(string? RelatedVideoId, string? RelatedVideoBrand, string? RelatedVideoUrl);
 
 public record SavePublishedVideoActivityInput(
@@ -78,5 +78,13 @@ public record SavePublishedVideoActivityInput(
     string? YouTubeVideoUrl,
     string? RelatedVideoId    = null,
     string? RelatedVideoBrand = null,
-    string  Platform          = "YouTube");
+    string  Platform          = "YouTube",
+    string? RumbleVideoId     = null,
+    string? RumbleVideoUrl    = null,
+    string? ImageSearchQuery  = null);
 public record SavePublishedVideoActivityResult(bool Saved);
+
+// ── Rumble publish ─────────────────────────────────────────────────────────────
+
+public record PublishToRumbleActivityInput(string JobId, string Fact, string VideoUrl, string? RelatedVideoUrl = null);
+public record PublishToRumbleActivityResult(string? VideoId, string? VideoUrl, string? Error);

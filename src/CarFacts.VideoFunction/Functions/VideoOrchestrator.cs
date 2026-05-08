@@ -35,7 +35,7 @@ public class VideoOrchestrator
             logger.LogInformation("[{JobId}] Step 0: GenerateCarFact (LLM)", input.JobId);
             var factResult = await ctx.CallActivityAsync<GenerateCarFactActivityResult>(
                 nameof(GenerateCarFactActivity),
-                new GenerateCarFactActivityInput(input.JobId, input.VideoLengthSecMin, input.VideoLengthSecMax, input.NarrationStyle));
+                new GenerateCarFactActivityInput(input.JobId, input.VideoLengthSecMin, input.VideoLengthSecMax, input.NarrationStyle, input.Platform));
             fact = factResult.Fact;
             logger.LogInformation("[{JobId}] Generated fact: \"{Preview}\"",
                 input.JobId, fact[..Math.Min(80, fact.Length)]);
@@ -118,11 +118,13 @@ public class VideoOrchestrator
         logger.LogInformation("[{JobId}] Step 4.5: GetRelatedVideo", input.JobId);
         var relatedResult = await ctx.CallActivityAsync<GetRelatedVideoActivityResult>(
             nameof(GetRelatedVideoActivity),
-            new GetRelatedVideoActivityInput(input.JobId));
+            new GetRelatedVideoActivityInput(input.JobId, input.Platform));
 
         // ── Step 5: Publish to platform ───────────────────────────────────────
         string? publishedVideoId  = null;
         string? publishedVideoUrl = null;
+        string? rumbleVideoId     = null;
+        string? rumbleVideoUrl    = null;
 
         if (string.Equals(input.Platform, "YouTube", StringComparison.OrdinalIgnoreCase))
         {
@@ -139,6 +141,23 @@ public class VideoOrchestrator
             else
                 logger.LogWarning("[{JobId}] YouTube publish skipped/failed: {Reason}", input.JobId, ytResult.Error);
         }
+        else if (string.Equals(input.Platform, "Rumble", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("[{JobId}] Step 5: PublishToRumble", input.JobId);
+            var rumbleResult = await ctx.CallActivityAsync<PublishToRumbleActivityResult>(
+                nameof(PublishToRumbleActivity),
+                new PublishToRumbleActivityInput(input.JobId, fact, result.VideoUrl, relatedResult.RelatedVideoUrl));
+
+            rumbleVideoId     = rumbleResult.VideoId;
+            rumbleVideoUrl    = rumbleResult.VideoUrl;
+            publishedVideoId  = rumbleVideoId;
+            publishedVideoUrl = rumbleVideoUrl;
+
+            if (rumbleVideoUrl != null)
+                logger.LogInformation("[{JobId}] 📺 Rumble: {Url}", input.JobId, rumbleVideoUrl);
+            else
+                logger.LogWarning("[{JobId}] Rumble publish skipped/failed: {Reason}", input.JobId, rumbleResult.Error);
+        }
         else
         {
             logger.LogWarning("[{JobId}] Platform '{Platform}' publishing not yet implemented — skipping publish step",
@@ -154,7 +173,10 @@ public class VideoOrchestrator
                 new SavePublishedVideoActivityInput(
                     input.JobId, fact, publishedVideoId, publishedVideoUrl,
                     relatedResult.RelatedVideoId, relatedResult.RelatedVideoBrand,
-                    input.Platform));
+                    input.Platform,
+                    RumbleVideoId:    rumbleVideoId,
+                    RumbleVideoUrl:   rumbleVideoUrl,
+                    ImageSearchQuery: effectiveQuery));
             logger.LogInformation("[{JobId}] 📋 Tracking entry saved", input.JobId);
         }
         catch (Exception ex)

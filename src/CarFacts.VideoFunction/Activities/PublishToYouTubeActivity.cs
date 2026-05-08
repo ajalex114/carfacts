@@ -78,7 +78,7 @@ public class PublishToYouTubeActivity(
         var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
         {
             ClientSecrets = new ClientSecrets { ClientId = clientId, ClientSecret = clientSecret },
-            Scopes        = [YouTubeService.Scope.YoutubeUpload]
+            Scopes        = [YouTubeService.Scope.Youtube, YouTubeService.Scope.YoutubeUpload, YouTubeService.Scope.YoutubeForceSsl]
         });
 
         var credential = new UserCredential(flow, "user", new TokenResponse

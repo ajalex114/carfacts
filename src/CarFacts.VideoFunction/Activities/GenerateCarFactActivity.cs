@@ -29,7 +29,7 @@ public class GenerateCarFactActivity(
         [ActivityTrigger] GenerateCarFactActivityInput input,
         FunctionContext ctx)
     {
-        var selection = await SelectBrandModelAsync(input.JobId);
+        var selection = await SelectBrandModelAsync(input.JobId, input.Platform);
 
         logger.LogInformation("[{JobId}] GenerateCarFact: {Reason} → brand={Brand} model={Model} style={Style} (target {Min}-{Max}s)",
             input.JobId, selection.Reason, selection.Brand, selection.Model ?? "(any)",
@@ -49,10 +49,10 @@ public class GenerateCarFactActivity(
         return new GenerateCarFactActivityResult(fact);
     }
 
-    private async Task<BrandModelSelection> SelectBrandModelAsync(string jobId)
+    private async Task<BrandModelSelection> SelectBrandModelAsync(string jobId, string platform)
     {
         // ── Level 1: find a brand not published in the last 5 days ──────────────
-        var recentPairs  = await trackingService.GetRecentBrandModelsAsync(5);
+        var recentPairs  = await trackingService.GetRecentBrandModelsAsync(5, platform);
         var recentBrands = recentPairs
             .Select(p => p.Brand.ToLowerInvariant())
             .ToHashSet();
@@ -76,7 +76,7 @@ public class GenerateCarFactActivity(
             .Where(m => !string.IsNullOrWhiteSpace(m))
             .ToHashSet();
 
-        var allKnown = await trackingService.GetAllKnownBrandModelsAsync(60);
+        var allKnown = await trackingService.GetAllKnownBrandModelsAsync(60, platform);
         var freshModelCandidates = allKnown
             .Where(p => !string.IsNullOrWhiteSpace(p.Model) &&
                         !recentModels.Contains(p.Model.ToLowerInvariant()))
@@ -92,7 +92,7 @@ public class GenerateCarFactActivity(
         logger.LogInformation("[{JobId}] All known models used in last 5 days — falling back to Level3 (LRU oldest)", jobId);
 
         // ── Level 3: pick the oldest (least-recently-used) brand+model ───────────
-        var oldest = await trackingService.GetOldestEntryBrandModelAsync();
+        var oldest = await trackingService.GetOldestEntryBrandModelAsync(platform);
         if (oldest.HasValue)
         {
             logger.LogInformation("[{JobId}] Level3 LRU: {Brand} {Model}", jobId, oldest.Value.Brand, oldest.Value.Model);

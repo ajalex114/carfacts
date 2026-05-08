@@ -24,18 +24,21 @@ public class SavePublishedVideoActivity(
 
         var entry = new VideoTrackingEntry
         {
-            Id             = input.JobId,
-            JobId          = input.JobId,
-            YouTubeVideoId = input.YouTubeVideoId,
-            YouTubeVideoUrl= input.YouTubeVideoUrl,
-            PublishedAt    = DateTimeOffset.UtcNow.ToString("O"),
-            Brand          = brand,
-            Model          = model,
-            Fact           = input.Fact,
-            Keywords       = keywords,
-            BacklinkCount  = 0,
-            RelatedVideoId = input.RelatedVideoId,
-            Platform       = input.Platform
+            Id              = input.JobId,
+            JobId           = input.JobId,
+            YouTubeVideoId  = input.Platform == "YouTube" ? input.YouTubeVideoId  : null,
+            YouTubeVideoUrl = input.Platform == "YouTube" ? input.YouTubeVideoUrl : null,
+            RumbleVideoId   = input.RumbleVideoId,
+            RumbleVideoUrl  = input.RumbleVideoUrl,
+            PublishedAt     = DateTimeOffset.UtcNow.ToString("O"),
+            Brand           = brand,
+            Model           = model,
+            Fact            = input.Fact,
+            ImageSearchQuery = input.ImageSearchQuery,
+            Keywords        = keywords,
+            BacklinkCount   = 0,
+            RelatedVideoId  = input.RelatedVideoId,
+            Platform        = input.Platform
         };
 
         await trackingService.SavePublishedVideoAsync(entry);
@@ -70,6 +73,8 @@ public class SavePublishedVideoActivity(
                     .TakeWhile(w => w.Length > 0 && (char.IsUpper(w[0]) || char.IsDigit(w[0])))
                     .ToArray();
                 var model = modelWords.Length > 0 ? string.Join(" ", modelWords) : null;
+                // Strip trailing punctuation that TakeWhile may have included as part of the last word.
+                model = model?.TrimEnd(',', '.', ';', ':', '!', '?', '\'', '\u2019', '\u2018');
                 return (candidate, model);
             }
         }

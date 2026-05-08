@@ -21,13 +21,15 @@ public class GetRelatedVideoActivity(
         [ActivityTrigger] GetRelatedVideoActivityInput input,
         FunctionContext ctx)
     {
-        var related = await trackingService.GetRelatedVideoForBacklinkAsync();
-        if (related?.YouTubeVideoUrl != null)
-            logger.LogInformation("[{JobId}] Related video: {Brand} → {Url} (backlinks={Count})",
-                input.JobId, related.Brand, related.YouTubeVideoUrl, related.BacklinkCount);
+        var related = await trackingService.GetRelatedVideoForBacklinkAsync(input.Platform);
+        var relatedUrl = related?.PlatformVideoUrl;
+        if (relatedUrl != null)
+            logger.LogInformation("[{JobId}] Related video ({Platform}): {Brand} → {Url} (backlinks={Count})",
+                input.JobId, input.Platform, related!.Brand, relatedUrl, related.BacklinkCount);
         else
-            logger.LogInformation("[{JobId}] No related video available yet", input.JobId);
+            logger.LogInformation("[{JobId}] No related video available yet for platform {Platform}",
+                input.JobId, input.Platform);
 
-        return new GetRelatedVideoActivityResult(related?.Id, related?.Brand, related?.YouTubeVideoUrl);
+        return new GetRelatedVideoActivityResult(related?.Id, related?.Brand, relatedUrl);
     }
 }

@@ -161,11 +161,11 @@ public class FetchClipActivity(
                   " -bicycle -cycle -bike -rusty -rusted -barn -junkyard" +
                   " -abandoned -damaged -wreck -wrecked -scrap" +
                   " -house -home -building -architecture -landscape -aerial -footage -logo -poster";
-        yield return $"{q} {neg}";
-        yield return $"{q} automobile photograph {neg}";
-        yield return $"{q} vintage car {neg}";
+        yield return $"{q} car vehicle {neg}";
+        yield return $"{q} car automobile photograph {neg}";
+        yield return $"{q} car exterior {neg}";
         yield return $"{q} car show museum {neg}";
-        yield return $"{imageSearchQuery} {neg}";    // unquoted broadener
+        yield return $"{imageSearchQuery} car vehicle {neg}";    // unquoted broadener
     }
 
     /// <summary>
@@ -174,7 +174,7 @@ public class FetchClipActivity(
     /// </summary>
     private static async Task<List<string>> SearchBingForImageUrlsAsync(string query, int maxResults, int first = 1)
     {
-        var url = $"https://www.bing.com/images/search?q={Uri.EscapeDataString(query)}&first={first}&count={maxResults}&mkt=en-US&safeSearch=Off&qft=+filterui:imagesize-large+filterui:photo-photo";
+        var url = $"https://www.bing.com/images/search?q={Uri.EscapeDataString(query)}&first={first}&count={maxResults}&mkt=en-US&safeSearch=Strict&qft=+filterui:imagesize-large+filterui:photo-photo";
         try
         {
             var req = new HttpRequestMessage(HttpMethod.Get, url);

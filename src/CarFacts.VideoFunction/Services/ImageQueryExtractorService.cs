@@ -41,7 +41,7 @@ public class ImageQueryExtractorService(
         {
             messages = new[]
             {
-                new { role = "system", content = "You extract car identifiers for image search. Reply with ONLY the brand, model, and year — nothing else. Example: Ford Model T 1908" },
+                new { role = "system", content = "You extract car identifiers for image search. Reply with ONLY the car brand, model, year, and the word 'car' — nothing else. Always include 'car' or 'supercar' or 'vehicle' to ensure search engines return automotive results. Example: Ford Model T 1908 vintage car" },
                 new { role = "user",   content = factText }
             },
             max_tokens  = 20,
@@ -82,6 +82,7 @@ public class ImageQueryExtractorService(
             parts.Add("car");
         }
         if (!string.IsNullOrEmpty(year)) parts.Add(year);
+        parts.Add("car");  // Always include "car" for search relevance
 
         return string.Join(" ", parts);
     }
