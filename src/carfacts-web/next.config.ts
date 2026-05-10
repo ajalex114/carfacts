@@ -13,11 +13,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "i0.wp.com",
+        hostname: "carfactsdaily.com",
       },
       {
         protocol: "https",
-        hostname: "carfactsdaily.com",
+        hostname: "stcarfacts5.blob.core.windows.net",
       },
       {
         protocol: "https",

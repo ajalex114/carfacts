@@ -136,7 +136,7 @@ export default async function PostPage({ params }: PostPageProps) {
                 ))}
               </ol>
             ) : post.htmlContent ? (
-              /* Migrated WordPress posts: render the original HTML, rewriting
+              /* Legacy posts with pre-rendered HTML: render as-is, rewriting
                  absolute production links to the current host so local dev works */
               <div
                 className="prose prose-neutral max-w-none text-foreground

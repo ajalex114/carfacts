@@ -3,7 +3,7 @@ import { DefaultAzureCredential } from "@azure/identity";
 import type { Post, PostFact } from "./types";
 import { MOCK_POSTS } from "./mock-data";
 
-// Decode numeric and common named HTML entities that WordPress encodes in API responses
+// Decode numeric and common named HTML entities found in post content
 function decodeHtmlEntities(str: string): string {
   if (!str) return str;
   return str
