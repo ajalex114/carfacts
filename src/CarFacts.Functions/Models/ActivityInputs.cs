@@ -19,7 +19,6 @@ public sealed class PublishInput
     public SeoMetadata Seo { get; set; } = null!;
     public List<UploadedMedia> Media { get; set; } = [];
     public string TodayDate { get; set; } = string.Empty;
-    public int DraftPostId { get; set; }
     public List<BacklinkSuggestion> Backlinks { get; set; } = [];
     public List<RelatedPostSuggestion> RelatedPosts { get; set; } = [];
 }
@@ -276,8 +275,6 @@ public sealed class SavePostInput
     public string HtmlContent { get; set; } = string.Empty;
     /// <summary>Canonical SWA post URL: https://carfactsdaily.com/YYYY/MM/DD/slug/</summary>
     public string PostUrl { get; set; } = string.Empty;
-    public string WordPressPostUrl { get; set; } = string.Empty;
-    public int WordPressPostId { get; set; }
     public string Slug { get; set; } = string.Empty;
     public DateTime PublishedAt { get; set; }
     public RawCarFactsContent Content { get; set; } = null!;

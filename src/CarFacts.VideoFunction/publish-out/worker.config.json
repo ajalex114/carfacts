@@ -1,0 +1,10 @@
+{
+  "description": {
+    "language": "dotnet-isolated",
+    "extensions": [ ".dll" ],
+    "defaultExecutablePath": "dotnet",
+    "defaultWorkerPath": "CarFacts.VideoFunction.dll",
+    "workerIndexing": "true",
+    "canUsePlaceholder": true
+  }
+}

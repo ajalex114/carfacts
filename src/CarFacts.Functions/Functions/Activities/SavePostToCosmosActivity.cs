@@ -67,8 +67,6 @@ public sealed class SavePostToCosmosActivity
             PublishedAt = input.PublishedAt,
             GeoSummary = input.Seo.GeoSummary,
             Facts = input.Content.Facts,
-            WordPressPostId = input.WordPressPostId,
-            WordPressPostUrl = input.WordPressPostUrl,
             CreatedAt = DateTime.UtcNow
         };
 

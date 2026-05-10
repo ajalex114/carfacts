@@ -155,29 +155,19 @@ public class ActivityTests
     #region FormatAndPublishActivity
 
     [Fact]
-    public async Task FormatAndPublish_WithDraftPost_UpdatesAndPublishes()
+    public async Task FormatAndPublish_ReturnsFormattedHtml()
     {
         var content = TestDataBuilder.CreateValidRawContent();
         var seo = TestDataBuilder.CreateValidSeoMetadata();
         var media = TestDataBuilder.CreateUploadedMedia();
-        var expected = TestDataBuilder.CreatePostResult();
 
         var formatter = new Mock<IContentFormatterService>();
         formatter
             .Setup(s => s.FormatPostHtml(It.IsAny<RawCarFactsContent>(), It.IsAny<SeoMetadata>(), It.IsAny<List<UploadedMedia>>(), It.IsAny<string>(), It.IsAny<List<BacklinkSuggestion>>(), It.IsAny<List<RelatedPostSuggestion>>()))
             .Returns("<p>HTML</p>");
 
-        var wpService = new Mock<IWordPressService>();
-        wpService
-            .Setup(s => s.UpdateAndPublishPostAsync(
-                42, It.IsAny<string>(), "<p>HTML</p>", It.IsAny<string>(),
-                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expected);
-
         var activity = new FormatAndPublishActivity(
             formatter.Object,
-            wpService.Object,
             Mock.Of<ILogger<FormatAndPublishActivity>>());
 
         var input = new PublishInput
@@ -185,42 +175,27 @@ public class ActivityTests
             Content = content,
             Seo = seo,
             Media = media,
-            TodayDate = "March 21",
-            DraftPostId = 42
+            TodayDate = "March 21"
         };
 
         var result = await activity.Run(input);
 
-        result.PostId.Should().Be(42);
-        wpService.Verify(s => s.UpdateAndPublishPostAsync(
-            42, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+        result.Should().Be("<p>HTML</p>");
     }
 
     [Fact]
-    public async Task FormatAndPublish_WithNoDraft_CreatesNewPost()
+    public async Task FormatAndPublish_WithNoMedia_ReturnsFormattedHtml()
     {
         var content = TestDataBuilder.CreateValidRawContent();
         var seo = TestDataBuilder.CreateValidSeoMetadata();
-        var expected = TestDataBuilder.CreatePostResult();
 
         var formatter = new Mock<IContentFormatterService>();
         formatter
             .Setup(s => s.FormatPostHtml(It.IsAny<RawCarFactsContent>(), It.IsAny<SeoMetadata>(), It.IsAny<List<UploadedMedia>>(), It.IsAny<string>(), It.IsAny<List<BacklinkSuggestion>>(), It.IsAny<List<RelatedPostSuggestion>>()))
-            .Returns("<p>HTML</p>");
-
-        var wpService = new Mock<IWordPressService>();
-        wpService
-            .Setup(s => s.CreatePostAsync(
-                It.IsAny<string>(), "<p>HTML</p>", It.IsAny<string>(),
-                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expected);
+            .Returns("<p>Text-only HTML</p>");
 
         var activity = new FormatAndPublishActivity(
             formatter.Object,
-            wpService.Object,
             Mock.Of<ILogger<FormatAndPublishActivity>>());
 
         var input = new PublishInput
@@ -228,17 +203,12 @@ public class ActivityTests
             Content = content,
             Seo = seo,
             Media = [],
-            TodayDate = "March 21",
-            DraftPostId = 0
+            TodayDate = "March 21"
         };
 
         var result = await activity.Run(input);
 
-        result.PostId.Should().Be(42);
-        wpService.Verify(s => s.CreatePostAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+        result.Should().Be("<p>Text-only HTML</p>");
     }
 
     #endregion

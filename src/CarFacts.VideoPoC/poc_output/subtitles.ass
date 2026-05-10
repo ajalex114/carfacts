@@ -1,0 +1,71 @@
+﻿[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Karaoke,Arial,86,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,4,2,2,60,60,260,1
+Style: Hook,Arial,50,&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,1,0,0,0,100,100,0,0,3,0,0,2,60,60,80,1
+Style: Watermark,Arial,60,&HCCFFFFFF,&HCCFFFFFF,&HCC000000,&H00000000,0,0,0,0,100,100,2,0,1,2,0,6,0,0,0,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:22.78,Watermark,,0,0,0,,{\an6\pos(1050,1280)}carfactsdaily.com
+Dialogue: 0,0:00:00.00,0:00:00.38,Karaoke,,0,0,0,,{\c&H0000FFFF}In {\c&H00AAAAAA}1908,{\c&H00FFFFFF}
+Dialogue: 0,0:00:00.38,0:00:01.58,Karaoke,,0,0,0,,{\c&H00AAAAAA}In {\c&H0000FFFF}1908, {\c&H00AAAAAA}Henry{\c&H00FFFFFF}
+Dialogue: 0,0:00:01.58,0:00:01.78,Karaoke,,0,0,0,,{\c&H00AAAAAA}1908, {\c&H0000FFFF}Henry {\c&H00AAAAAA}Ford{\c&H00FFFFFF}
+Dialogue: 0,0:00:01.78,0:00:02.16,Karaoke,,0,0,0,,{\c&H00AAAAAA}Henry {\c&H0000FFFF}Ford {\c&H00AAAAAA}introduced{\c&H00FFFFFF}
+Dialogue: 0,0:00:02.16,0:00:02.62,Karaoke,,0,0,0,,{\c&H00AAAAAA}Ford {\c&H0000FFFF}introduced {\c&H00AAAAAA}the{\c&H00FFFFFF}
+Dialogue: 0,0:00:02.62,0:00:03.02,Karaoke,,0,0,0,,{\c&H00AAAAAA}introduced {\c&H0000FFFF}the {\c&H00AAAAAA}Model{\c&H00FFFFFF}
+Dialogue: 0,0:00:03.02,0:00:03.22,Karaoke,,0,0,0,,{\c&H00AAAAAA}the {\c&H0000FFFF}Model {\c&H00AAAAAA}T.{\c&H00FFFFFF}
+Dialogue: 0,0:00:03.22,0:00:03.90,Karaoke,,0,0,0,,{\c&H00AAAAAA}Model {\c&H0000FFFF}T. {\c&H00AAAAAA}The{\c&H00FFFFFF}
+Dialogue: 0,0:00:03.90,0:00:04.08,Karaoke,,0,0,0,,{\c&H00AAAAAA}T. {\c&H0000FFFF}The {\c&H00AAAAAA}first{\c&H00FFFFFF}
+Dialogue: 0,0:00:04.08,0:00:04.32,Karaoke,,0,0,0,,{\c&H00AAAAAA}The {\c&H0000FFFF}first {\c&H00AAAAAA}car{\c&H00FFFFFF}
+Dialogue: 0,0:00:04.32,0:00:04.58,Karaoke,,0,0,0,,{\c&H00AAAAAA}first {\c&H0000FFFF}car {\c&H00AAAAAA}built{\c&H00FFFFFF}
+Dialogue: 0,0:00:04.58,0:00:04.80,Karaoke,,0,0,0,,{\c&H00AAAAAA}car {\c&H0000FFFF}built {\c&H00AAAAAA}for{\c&H00FFFFFF}
+Dialogue: 0,0:00:04.80,0:00:05.16,Karaoke,,0,0,0,,{\c&H00AAAAAA}built {\c&H0000FFFF}for {\c&H00AAAAAA}ordinary{\c&H00FFFFFF}
+Dialogue: 0,0:00:05.16,0:00:05.44,Karaoke,,0,0,0,,{\c&H00AAAAAA}for {\c&H0000FFFF}ordinary {\c&H00AAAAAA}people.{\c&H00FFFFFF}
+Dialogue: 0,0:00:05.44,0:00:06.48,Karaoke,,0,0,0,,{\c&H00AAAAAA}ordinary {\c&H0000FFFF}people. {\c&H00AAAAAA}Ford{\c&H00FFFFFF}
+Dialogue: 0,0:00:06.48,0:00:06.68,Karaoke,,0,0,0,,{\c&H00AAAAAA}people. {\c&H0000FFFF}Ford {\c&H00AAAAAA}painted{\c&H00FFFFFF}
+Dialogue: 0,0:00:06.68,0:00:07.10,Karaoke,,0,0,0,,{\c&H00AAAAAA}Ford {\c&H0000FFFF}painted {\c&H00AAAAAA}every{\c&H00FFFFFF}
+Dialogue: 0,0:00:07.10,0:00:07.54,Karaoke,,0,0,0,,{\c&H00AAAAAA}painted {\c&H0000FFFF}every {\c&H00AAAAAA}one{\c&H00FFFFFF}
+Dialogue: 0,0:00:07.54,0:00:07.84,Karaoke,,0,0,0,,{\c&H00AAAAAA}every {\c&H0000FFFF}one {\c&H00AAAAAA}black{\c&H00FFFFFF}
+Dialogue: 0,0:00:07.84,0:00:08.16,Karaoke,,0,0,0,,{\c&H00AAAAAA}one {\c&H0000FFFF}black {\c&H00AAAAAA}because{\c&H00FFFFFF}
+Dialogue: 0,0:00:08.16,0:00:08.72,Karaoke,,0,0,0,,{\c&H00AAAAAA}black {\c&H0000FFFF}because {\c&H00AAAAAA}black{\c&H00FFFFFF}
+Dialogue: 0,0:00:08.72,0:00:09.11,Karaoke,,0,0,0,,{\c&H00AAAAAA}because {\c&H0000FFFF}black {\c&H00AAAAAA}paint{\c&H00FFFFFF}
+Dialogue: 0,0:00:09.11,0:00:09.42,Karaoke,,0,0,0,,{\c&H00AAAAAA}black {\c&H0000FFFF}paint {\c&H00AAAAAA}dried{\c&H00FFFFFF}
+Dialogue: 0,0:00:09.42,0:00:09.70,Karaoke,,0,0,0,,{\c&H00AAAAAA}paint {\c&H0000FFFF}dried {\c&H00AAAAAA}the{\c&H00FFFFFF}
+Dialogue: 0,0:00:09.70,0:00:09.96,Karaoke,,0,0,0,,{\c&H00AAAAAA}dried {\c&H0000FFFF}the {\c&H00AAAAAA}fastest,{\c&H00FFFFFF}
+Dialogue: 0,0:00:09.96,0:00:10.84,Karaoke,,0,0,0,,{\c&H00AAAAAA}the {\c&H0000FFFF}fastest, {\c&H00AAAAAA}keeping{\c&H00FFFFFF}
+Dialogue: 0,0:00:10.84,0:00:10.98,Karaoke,,0,0,0,,{\c&H00AAAAAA}fastest, {\c&H0000FFFF}keeping {\c&H00AAAAAA}the{\c&H00FFFFFF}
+Dialogue: 0,0:00:10.98,0:00:11.28,Karaoke,,0,0,0,,{\c&H00AAAAAA}keeping {\c&H0000FFFF}the {\c&H00AAAAAA}assembly{\c&H00FFFFFF}
+Dialogue: 0,0:00:11.28,0:00:11.61,Karaoke,,0,0,0,,{\c&H00AAAAAA}the {\c&H0000FFFF}assembly {\c&H00AAAAAA}line{\c&H00FFFFFF}
+Dialogue: 0,0:00:11.61,0:00:11.98,Karaoke,,0,0,0,,{\c&H00AAAAAA}assembly {\c&H0000FFFF}line {\c&H00AAAAAA}moving.{\c&H00FFFFFF}
+Dialogue: 0,0:00:11.98,0:00:12.86,Karaoke,,0,0,0,,{\c&H00AAAAAA}line {\c&H0000FFFF}moving. {\c&H00AAAAAA}At{\c&H00FFFFFF}
+Dialogue: 0,0:00:12.86,0:00:12.94,Karaoke,,0,0,0,,{\c&H00AAAAAA}moving. {\c&H0000FFFF}At {\c&H00AAAAAA}peak{\c&H00FFFFFF}
+Dialogue: 0,0:00:12.94,0:00:13.11,Karaoke,,0,0,0,,{\c&H00AAAAAA}At {\c&H0000FFFF}peak {\c&H00AAAAAA}production,{\c&H00FFFFFF}
+Dialogue: 0,0:00:13.11,0:00:14.08,Karaoke,,0,0,0,,{\c&H00AAAAAA}peak {\c&H0000FFFF}production, {\c&H00AAAAAA}a{\c&H00FFFFFF}
+Dialogue: 0,0:00:14.08,0:00:14.18,Karaoke,,0,0,0,,{\c&H00AAAAAA}production, {\c&H0000FFFF}a {\c&H00AAAAAA}new{\c&H00FFFFFF}
+Dialogue: 0,0:00:14.18,0:00:14.40,Karaoke,,0,0,0,,{\c&H00AAAAAA}a {\c&H0000FFFF}new {\c&H00AAAAAA}Model{\c&H00FFFFFF}
+Dialogue: 0,0:00:14.40,0:00:14.66,Karaoke,,0,0,0,,{\c&H00AAAAAA}new {\c&H0000FFFF}Model {\c&H00AAAAAA}T{\c&H00FFFFFF}
+Dialogue: 0,0:00:14.66,0:00:14.96,Karaoke,,0,0,0,,{\c&H00AAAAAA}Model {\c&H0000FFFF}T {\c&H00AAAAAA}rolled{\c&H00FFFFFF}
+Dialogue: 0,0:00:14.96,0:00:15.18,Karaoke,,0,0,0,,{\c&H00AAAAAA}T {\c&H0000FFFF}rolled {\c&H00AAAAAA}off{\c&H00FFFFFF}
+Dialogue: 0,0:00:15.18,0:00:15.46,Karaoke,,0,0,0,,{\c&H00AAAAAA}rolled {\c&H0000FFFF}off {\c&H00AAAAAA}the{\c&H00FFFFFF}
+Dialogue: 0,0:00:15.46,0:00:15.68,Karaoke,,0,0,0,,{\c&H00AAAAAA}off {\c&H0000FFFF}the {\c&H00AAAAAA}line{\c&H00FFFFFF}
+Dialogue: 0,0:00:15.68,0:00:15.96,Karaoke,,0,0,0,,{\c&H00AAAAAA}the {\c&H0000FFFF}line {\c&H00AAAAAA}every{\c&H00FFFFFF}
+Dialogue: 0,0:00:15.96,0:00:16.46,Karaoke,,0,0,0,,{\c&H00AAAAAA}line {\c&H0000FFFF}every {\c&H00AAAAAA}24{\c&H00FFFFFF}
+Dialogue: 0,0:00:16.46,0:00:16.94,Karaoke,,0,0,0,,{\c&H00AAAAAA}every {\c&H0000FFFF}24 {\c&H00AAAAAA}seconds.{\c&H00FFFFFF}
+Dialogue: 0,0:00:16.94,0:00:18.02,Karaoke,,0,0,0,,{\c&H00AAAAAA}24 {\c&H0000FFFF}seconds. {\c&H00AAAAAA}It{\c&H00FFFFFF}
+Dialogue: 0,0:00:18.02,0:00:18.10,Karaoke,,0,0,0,,{\c&H00AAAAAA}seconds. {\c&H0000FFFF}It {\c&H00AAAAAA}didn't{\c&H00FFFFFF}
+Dialogue: 0,0:00:18.10,0:00:18.36,Karaoke,,0,0,0,,{\c&H00AAAAAA}It {\c&H0000FFFF}didn't {\c&H00AAAAAA}just{\c&H00FFFFFF}
+Dialogue: 0,0:00:18.36,0:00:18.60,Karaoke,,0,0,0,,{\c&H00AAAAAA}didn't {\c&H0000FFFF}just {\c&H00AAAAAA}change{\c&H00FFFFFF}
+Dialogue: 0,0:00:18.60,0:00:18.84,Karaoke,,0,0,0,,{\c&H00AAAAAA}just {\c&H0000FFFF}change {\c&H00AAAAAA}driving.{\c&H00FFFFFF}
+Dialogue: 0,0:00:18.84,0:00:19.64,Karaoke,,0,0,0,,{\c&H00AAAAAA}change {\c&H0000FFFF}driving. {\c&H00AAAAAA}It{\c&H00FFFFFF}
+Dialogue: 0,0:00:19.64,0:00:19.84,Karaoke,,0,0,0,,{\c&H00AAAAAA}driving. {\c&H0000FFFF}It {\c&H00AAAAAA}changed{\c&H00FFFFFF}
+Dialogue: 0,0:00:19.84,0:00:20.10,Karaoke,,0,0,0,,{\c&H00AAAAAA}It {\c&H0000FFFF}changed {\c&H00AAAAAA}the{\c&H00FFFFFF}
+Dialogue: 0,0:00:20.10,0:00:20.30,Karaoke,,0,0,0,,{\c&H00AAAAAA}changed {\c&H0000FFFF}the {\c&H00AAAAAA}world.{\c&H00FFFFFF}
+Dialogue: 0,0:00:20.30,0:00:20.53,Karaoke,,0,0,0,,{\c&H00AAAAAA}the {\c&H0000FFFF}world.{\c&H00FFFFFF}
+Dialogue: 1,0:00:20.78,0:00:22.78,Hook,,0,0,0,,{\an2}Follow at carfactsdaily.com

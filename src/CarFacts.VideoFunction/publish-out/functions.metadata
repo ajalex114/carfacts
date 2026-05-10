@@ -1,0 +1,359 @@
+[
+  {
+    "name": "DailySchedulerOrchestrator",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.DailySchedulerOrchestrator.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "ctx",
+        "direction": "In",
+        "type": "orchestrationTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "DailySchedulerTrigger",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.DailySchedulerTrigger.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "timer",
+        "direction": "In",
+        "type": "timerTrigger",
+        "schedule": "0 0 6 * * *",
+        "runOnStartup": false,
+        "properties": {}
+      },
+      {
+        "name": "client",
+        "direction": "In",
+        "type": "durableClient",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "StartVideo",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.HttpStartFunction.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Function",
+        "methods": [
+          "post",
+          "get"
+        ],
+        "route": "start-video",
+        "properties": {}
+      },
+      {
+        "name": "client",
+        "direction": "In",
+        "type": "durableClient",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "GetJobLogs",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.LogsFunction.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Function",
+        "methods": [
+          "get"
+        ],
+        "route": "logs/{jobId}",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "ScheduledVideoOrchestrator",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.ScheduledVideoOrchestrator.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "ctx",
+        "direction": "In",
+        "type": "orchestrationTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "GetVideoStatus",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.StatusFunction.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "req",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Function",
+        "methods": [
+          "get"
+        ],
+        "route": "status/{jobId}",
+        "properties": {}
+      },
+      {
+        "name": "client",
+        "direction": "In",
+        "type": "durableClient",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "VideoOrchestrator",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Functions.VideoOrchestrator.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "ctx",
+        "direction": "In",
+        "type": "orchestrationTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "FetchClipActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.FetchClipActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "GenerateCarFactActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.GenerateCarFactActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "GenerateDailyScheduleActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.GenerateDailyScheduleActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "GenerateSearchQueryActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.GenerateSearchQueryActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "GetRelatedVideoActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.GetRelatedVideoActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "PlanSegmentsActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.PlanSegmentsActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "PublishToRumbleActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.PublishToRumbleActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "PublishToYouTubeActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.PublishToYouTubeActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "RenderVideoActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.RenderVideoActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "SavePublishedVideoActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.SavePublishedVideoActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "SynthesizeTtsActivity",
+    "scriptFile": "CarFacts.VideoFunction.dll",
+    "entryPoint": "CarFacts.VideoFunction.Activities.SynthesizeTtsActivity.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  }
+]
