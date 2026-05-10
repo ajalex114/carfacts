@@ -7,8 +7,8 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches: [master]
   schedule:
-    # Rebuild daily at 07:30 UTC (1:00 PM IST) — picks up the new post published by Azure Functions
-    - cron: '30 7 * * *'
+    # Rebuild daily at 19:00 UTC (12:30 AM IST) — picks up the new post published by Azure Functions at 18:00 UTC
+    - cron: '0 19 * * *'
 
 jobs:
   build_and_deploy:
