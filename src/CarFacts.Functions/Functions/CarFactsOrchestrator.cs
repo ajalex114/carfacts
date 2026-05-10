@@ -104,23 +104,35 @@ public static class CarFactsOrchestrator
 
         logger.LogInformation("Post slug: {Slug} | Canonical URL: {Url}", slug, canonicalPostUrl);
 
-        // Step 4: Upload images to Blob Storage (Blob URLs will be embedded in HTML)
+        // Step 4: Upload images to Blob Storage in parallel (fan-out)
         var blobResults = new List<BlobUploadResult>();
         if (images.Count > 0)
         {
             try
             {
-                blobResults = await context.CallActivityAsync<List<BlobUploadResult>>(
-                    nameof(UploadImagesToBlobActivity),
-                    new UploadImagesToBlobInput
-                    {
-                        Images = images,
-                        Facts = content.Facts,
-                        PathPrefix = blobPathPrefix
-                    },
-                    new TaskOptions(BlobRetryPolicy));
+                var uploadTasks = new List<Task<BlobUploadResult>>();
+                foreach (var image in images)
+                {
+                    var fact = content.Facts.Count > image.FactIndex ? content.Facts[image.FactIndex] : null;
+                    var altText = fact != null
+                        ? $"{fact.CarModel} ({fact.Year}) — {fact.CatchyTitle}"
+                        : $"Car image {image.FactIndex + 1}";
 
-                logger.LogInformation("Uploaded {Count} images to Blob Storage", blobResults.Count);
+                    uploadTasks.Add(context.CallActivityAsync<BlobUploadResult>(
+                        nameof(UploadImagesToBlobActivity),
+                        new UploadSingleImageToBlobInput
+                        {
+                            Image = image,
+                            PathPrefix = blobPathPrefix,
+                            AltText = altText
+                        },
+                        new TaskOptions(BlobRetryPolicy)));
+                }
+
+                var results = await Task.WhenAll(uploadTasks);
+                blobResults = results.ToList();
+
+                logger.LogInformation("Uploaded {Count} images to Blob Storage in parallel", blobResults.Count);
             }
             catch (Exception ex)
             {

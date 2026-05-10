@@ -65,14 +65,6 @@ public sealed class PostDocument
     [JsonPropertyName("facts")]
     public List<CarFact> Facts { get; set; } = [];
 
-    /// <summary>WordPress post ID — for reference during migration only.</summary>
-    [JsonPropertyName("wordPressPostId")]
-    public int WordPressPostId { get; set; }
-
-    /// <summary>WordPress post URL — for reference during migration only.</summary>
-    [JsonPropertyName("wordPressPostUrl")]
-    public string WordPressPostUrl { get; set; } = string.Empty;
-
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

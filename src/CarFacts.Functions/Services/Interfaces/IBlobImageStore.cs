@@ -4,7 +4,7 @@ namespace CarFacts.Functions.Services.Interfaces;
 
 /// <summary>
 /// Uploads post images to Azure Blob Storage.
-/// Returns Blob URLs that are embedded in post HTML (replacing WordPress CDN URLs).
+/// Returns Blob URLs that are embedded in post HTML.
 /// </summary>
 public interface IBlobImageStore
 {

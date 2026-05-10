@@ -103,55 +103,6 @@ public class ActivityTests
 
     #endregion
 
-    #region CreateDraftPostActivity
-
-    [Fact]
-    public async Task CreateDraftPost_ReturnsDraftPostResult()
-    {
-        var expected = TestDataBuilder.CreatePostResult();
-        var wpService = new Mock<IWordPressService>();
-        wpService
-            .Setup(s => s.CreateDraftPostAsync("Test Title", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expected);
-
-        var activity = new CreateDraftPostActivity(
-            wpService.Object,
-            Mock.Of<ILogger<CreateDraftPostActivity>>());
-
-        var result = await activity.Run("Test Title");
-
-        result.PostId.Should().Be(42);
-    }
-
-    #endregion
-
-    #region UploadSingleImageActivity
-
-    [Fact]
-    public async Task UploadSingleImage_ReturnsUploadedMedia()
-    {
-        var fact = TestDataBuilder.CreateFact(0);
-        var image = new GeneratedImage { FactIndex = 0, ImageData = [0x89], FileName = "test.png" };
-        var expectedMedia = new UploadedMedia { FactIndex = 0, MediaId = 100, SourceUrl = "https://example.com/test.png" };
-        var input = new UploadImageInput { Image = image, Fact = fact, ParentPostId = 42 };
-
-        var wpService = new Mock<IWordPressService>();
-        wpService
-            .Setup(s => s.UploadSingleImageAsync(image, fact, 42, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedMedia);
-
-        var activity = new UploadSingleImageActivity(
-            wpService.Object,
-            Mock.Of<ILogger<UploadSingleImageActivity>>());
-
-        var result = await activity.Run(input);
-
-        result.MediaId.Should().Be(100);
-        result.SourceUrl.Should().Be("https://example.com/test.png");
-    }
-
-    #endregion
-
     #region FormatAndPublishActivity
 
     [Fact]

@@ -12,10 +12,9 @@ public sealed class BlobUploadResult
 }
 
 /// <summary>
-/// Result returned by FormatAndPublishActivity — includes WordPress result and the formatted HTML.
+/// Result returned by FormatAndPublishActivity — the formatted HTML content.
 /// </summary>
 public sealed class FormatAndPublishResult
 {
-    public WordPressPostResult WordPress { get; set; } = null!;
     public string HtmlContent { get; set; } = string.Empty;
 }

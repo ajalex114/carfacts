@@ -1,16 +1,6 @@
 namespace CarFacts.Functions.Models;
 
 /// <summary>
-/// Input for the image upload activity.
-/// </summary>
-public sealed class UploadImageInput
-{
-    public GeneratedImage Image { get; set; } = null!;
-    public CarFact Fact { get; set; } = null!;
-    public int ParentPostId { get; set; }
-}
-
-/// <summary>
 /// Input for the format-and-publish activity.
 /// </summary>
 public sealed class PublishInput
@@ -244,27 +234,13 @@ public sealed class PinterestFactSelection
 }
 
 /// <summary>
-/// Input for the Web Story creation activity.
+/// Input for uploading a single image to Blob Storage (fan-out from orchestrator).
 /// </summary>
-public sealed class CreateWebStoryInput
+public sealed class UploadSingleImageToBlobInput
 {
-    public List<CarFact> Facts { get; set; } = [];
-    public string MainTitle { get; set; } = string.Empty;
-    public string PostUrl { get; set; } = string.Empty;
-    public string Excerpt { get; set; } = string.Empty;
-    public string FeaturedImageUrl { get; set; } = string.Empty;
-    public List<UploadedMedia> Media { get; set; } = [];
-}
-
-/// <summary>
-/// Input for the UploadImagesToBlobActivity.
-/// </summary>
-public sealed class UploadImagesToBlobInput
-{
-    public List<GeneratedImage> Images { get; set; } = [];
-    public List<CarFact> Facts { get; set; } = [];
-    /// <summary>Blob path prefix, e.g. "2026/04/15/my-post-slug/"</summary>
+    public GeneratedImage Image { get; set; } = null!;
     public string PathPrefix { get; set; } = string.Empty;
+    public string AltText { get; set; } = string.Empty;
 }
 
 /// <summary>

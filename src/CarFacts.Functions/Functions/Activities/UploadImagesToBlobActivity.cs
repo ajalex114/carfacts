@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 namespace CarFacts.Functions.Functions.Activities;
 
 /// <summary>
-/// Uploads all post images to Azure Blob Storage and returns Blob URLs.
-/// This runs BEFORE WordPress image upload so that Blob URLs are embedded in post HTML.
+/// Uploads a single post image to Azure Blob Storage and returns the Blob URL.
+/// Called in parallel from the orchestrator (fan-out pattern).
 /// </summary>
 public sealed class UploadImagesToBlobActivity
 {
@@ -23,26 +23,15 @@ public sealed class UploadImagesToBlobActivity
     }
 
     [Function(nameof(UploadImagesToBlobActivity))]
-    public async Task<List<BlobUploadResult>> Run(
-        [ActivityTrigger] UploadImagesToBlobInput input)
+    public async Task<BlobUploadResult> Run(
+        [ActivityTrigger] UploadSingleImageToBlobInput input)
     {
-        _logger.LogInformation("Uploading {Count} images to Blob Storage at prefix '{Prefix}'",
-            input.Images.Count, input.PathPrefix);
+        _logger.LogInformation("Uploading image {Index} to Blob Storage at '{Path}'",
+            input.Image.FactIndex, input.PathPrefix);
 
-        var results = new List<BlobUploadResult>();
+        var result = await _blobStore.UploadImageAsync(input.Image, input.PathPrefix, input.AltText);
 
-        foreach (var image in input.Images)
-        {
-            var fact = input.Facts.Count > image.FactIndex ? input.Facts[image.FactIndex] : null;
-            var altText = fact != null
-                ? $"{fact.CarModel} ({fact.Year}) — {fact.CatchyTitle}"
-                : $"Car image {image.FactIndex + 1}";
-
-            var result = await _blobStore.UploadImageAsync(image, input.PathPrefix, altText);
-            results.Add(result);
-        }
-
-        _logger.LogInformation("Uploaded {Count} images to Blob Storage", results.Count);
-        return results;
+        _logger.LogInformation("Uploaded image {Index} to {Url}", input.Image.FactIndex, result.BlobUrl);
+        return result;
     }
 }

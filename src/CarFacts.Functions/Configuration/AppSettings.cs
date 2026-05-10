@@ -40,17 +40,6 @@ public sealed class TogetherAISettings
     public int Steps { get; set; } = 20;
 }
 
-public sealed class WordPressSettings
-{
-    public const string SectionName = "WordPress";
-
-    public string SiteId { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
-    public string PostStatus { get; set; } = "publish";
-    public bool EmbedImagesAsBase64 { get; set; } = false;
-    public bool SkipImages { get; set; } = false;
-}
-
 public sealed class KeyVaultSettings
 {
     public const string SectionName = "KeyVault";

@@ -89,17 +89,6 @@ public static class TestDataBuilder
         }).ToList();
     }
 
-    public static WordPressPostResult CreatePostResult()
-    {
-        return new WordPressPostResult
-        {
-            PostId = 42,
-            PostUrl = "https://example.com/shocking-car-moments-march-21/",
-            Title = "5 Shocking Car Moments from March 21 That Rewrote History",
-            PublishedAt = new DateTime(2026, 3, 21, 6, 0, 0, DateTimeKind.Utc)
-        };
-    }
-
     public static string CreateOpenAIResponseJson(CarFactsResponse response)
     {
         var contentJson = System.Text.Json.JsonSerializer.Serialize(response);
@@ -131,29 +120,4 @@ public static class TestDataBuilder
         """;
     }
 
-    public static string CreateWordPressMediaResponseJson(int mediaId, int factIndex)
-    {
-        return $$"""
-        {
-          "media": [
-            {
-              "ID": {{mediaId}},
-              "URL": "https://example.com/wp-content/uploads/car-fact-{{factIndex + 1}}.png"
-            }
-          ]
-        }
-        """;
-    }
-
-    public static string CreateWordPressPostResponseJson()
-    {
-        return """
-        {
-          "ID": 42,
-          "URL": "https://example.com/shocking-car-moments-march-21/",
-          "title": "5 Shocking Car Moments from March 21 That Rewrote History",
-          "date": "2026-03-21T06:00:00"
-        }
-        """;
-    }
 }
